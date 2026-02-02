@@ -13,8 +13,9 @@
 ## 🛠️ Tech Stack
 
 - **Frontend**: React 19, Vite, TypeScript
-- **Styling**: Vanilla CSS with modern, responsive aesthetics
-- **AI**: Google Generative AI (Gemini API)
+- **Backend**: Node.js, Express, Socket.io
+- **AI**: Google Generative AI (Gemini 2.5 Flash via Server Proxy)
+- **Styling**: Vanilla CSS with modern aesthetics
 - **Icons**: Lucide React
 
 ## 📸 Screenshots
@@ -26,12 +27,41 @@
   <img src="assets/screen-4.png" width="45%" />
 </div>
 
-## Run Locally
+## 🛠️ Getting Started
 
-**Prerequisites:**  Node.js
+### Prerequisites
+- Node.js (v18+)
+- A Google Gemini API Key
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+### Installation
+
+1. Clone the repository
+2. Install dependencies for both frontend and backend:
+   ```bash
+   npm install
+   ```
+3. Create a `.env` file in the root directory:
+   ```env
+   GEMINI_API_KEY=your_api_key_here
+   PORT=3001
+   ```
+
+### Running the App
+
+You need to run both the sync server and the development frontend.
+
+1. **Start the Sync Server** (Backend):
+   ```bash
+   npm run server
+   ```
+
+2. **Start the Frontend** (in a separate terminal):
+   ```bash
+   npm run dev
+   ```
+
+The app will be available at `http://localhost:3000`.
+
+## 🔒 Security Note
+This application uses a server-side proxy to communicate with the Gemini API. This ensures that your API keys are never exposed to the client-side bundle. Additionally, session updates are validated on the server to ensure only authorized admins can change the retro phase.
+
