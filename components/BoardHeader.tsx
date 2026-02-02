@@ -76,7 +76,15 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
         </button>
       )}
       <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("Link copied!"); }} className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-700 transition-colors border border-transparent hover:border-slate-200" title="Copy share link"><Copy className="w-6 h-6" /></button>
-      <button onClick={onReset} className="p-2.5 hover:bg-red-50 rounded-xl text-red-600 transition-colors border border-transparent hover:border-red-100" title="Leave session"><LogOut className="w-6 h-6" /></button>
+      <button onClick={() => {
+        if (currentUser.isAdmin) {
+          if (window.confirm("Do you want to close this session for everyone? This will save it to your history.")) {
+            onReset();
+          }
+        } else {
+          onReset();
+        }
+      }} className="p-2.5 hover:bg-red-50 rounded-xl text-red-600 transition-colors border border-transparent hover:border-red-100" title="Leave session"><LogOut className="w-6 h-6" /></button>
     </div>
   </header>
 );

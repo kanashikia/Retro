@@ -10,7 +10,7 @@ interface Props {
 }
 
 const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession }) => {
-  const currentTheme = session.themes[session.currentThemeIndex];
+  const currentTheme = (session.themes || [])[session.currentThemeIndex];
 
   if (!currentTheme) return (
     <div className="flex flex-col items-center justify-center h-full text-center space-y-6 py-20">
@@ -25,7 +25,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
       <div className="text-center space-y-6 animate-in fade-in slide-in-from-top-6">
         <div className="flex items-center justify-center gap-4">
           <div className="inline-flex items-center px-4 py-2 bg-indigo-100 text-indigo-700 text-sm font-black rounded-xl uppercase tracking-widest border border-indigo-200">
-            Topic {session.currentThemeIndex + 1} of {session.themes.length}
+            Topic {session.currentThemeIndex + 1} of {(session.themes || []).length}
           </div>
           <div className="inline-flex items-center px-4 py-2 bg-emerald-100 text-emerald-700 text-sm font-black rounded-xl uppercase tracking-widest border border-emerald-200 gap-2">
             <Vote className="w-4 h-4" /> {currentTheme.votes} Votes
@@ -37,7 +37,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
 
       <div className="flex-1 space-y-6 overflow-y-auto pr-4 no-scrollbar pb-10">
         <h3 className="text-xs font-black text-slate-400 uppercase tracking-[0.2em] text-center mb-4">Cards linked to this theme</h3>
-        {session.tickets
+        {(session.tickets || [])
           .filter(t => t.themeId === currentTheme.id)
           .map(t => (
             <div key={t.id} className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-100 shadow-sm flex items-start gap-8 hover:border-indigo-200 transition-all group">
@@ -64,7 +64,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
             <ChevronLeft className="w-7 h-7" /> Previous
           </button>
           <button
-            disabled={session.currentThemeIndex === session.themes.length - 1}
+            disabled={session.currentThemeIndex === (session.themes || []).length - 1}
             onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex + 1 })}
             className="flex items-center gap-3 px-10 py-5 bg-indigo-600 text-white rounded-2xl font-black hover:bg-indigo-700 transition-all disabled:opacity-30 shadow-xl shadow-indigo-100 active:scale-95"
           >

@@ -33,7 +33,7 @@ const Login: React.FC = () => {
                 setIsRegistering(false);
             } else {
                 localStorage.setItem('retro_token', data.token);
-                localStorage.setItem('retro_admin', JSON.stringify({ id: data.id, name: data.username, isAdmin: true }));
+                localStorage.setItem('retro_admin', JSON.stringify({ id: data.id, name: data.username, isAdmin: true, votesRemaining: 5 }));
                 navigate('/');
             }
         } catch (err: any) {

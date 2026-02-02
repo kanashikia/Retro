@@ -15,6 +15,8 @@
 - **Frontend**: React 19, Vite, TypeScript
 - **Backend**: Node.js, Express, Socket.io
 - **AI**: Google Generative AI (Gemini 2.5 Flash via Server Proxy)
+- **Database**: MySQL with Sequelize ORM
+- **Infrastructure**: Docker & Docker Compose
 - **Styling**: Vanilla CSS with modern aesthetics
 - **Icons**: Lucide React
 
@@ -31,6 +33,7 @@
 
 ### Prerequisites
 - Node.js (v18+)
+- Docker & Docker Compose (Recommended for Database)
 - A Google Gemini API Key
 
 ### Installation
@@ -42,20 +45,43 @@
    ```
 3. Create a `.env` file in the root directory:
    ```env
+   # AI Configuration
    GEMINI_API_KEY=your_api_key_here
+
+   # Server Configuration
    PORT=3001
+   JWT_SECRET=your_super_secret_key_here
+
+   # Database Configuration (Docker defaults)
+   DB_HOST=localhost
+   DB_USER=root
+   DB_PASSWORD=password
+   DB_NAME=retro
+
+   # Frontend Configuration
+   VITE_SOCKET_URL=http://localhost:3001
    ```
 
-### Running the App
+### 🐳 Running with Docker (Recommended)
 
-You need to run both the sync server and the development frontend.
+The easiest way to get everything running, including the MySQL database, is using Docker:
 
-1. **Start the Sync Server** (Backend):
+```bash
+docker-compose up --build
+```
+
+The app will be available at `http://localhost:3000`.
+
+### 🛠️ Manual Execution
+
+If you prefer to run things manually:
+
+1. **Start MySQL**: Ensure you have a MySQL server running and a database named `retro` created.
+2. **Start the Sync Server** (Backend):
    ```bash
    npm run server
    ```
-
-2. **Start the Frontend** (in a separate terminal):
+3. **Start the Frontend** (in a separate terminal):
    ```bash
    npm run dev
    ```

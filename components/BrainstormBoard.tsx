@@ -58,7 +58,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
                 </div>
               </div>
             )}
-            {session.tickets.filter(t => t.column === col).map(ticket => (
+            {(session.tickets || []).filter(t => t.column === col).map(ticket => (
               <div key={ticket.id} className="p-6 rounded-2xl border border-slate-200 bg-white group relative shadow-sm hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-2">
                 <p className="text-slate-800 text-base lg:text-lg leading-relaxed whitespace-pre-wrap">{ticket.text}</p>
                 <div className="mt-5 flex items-center justify-between">

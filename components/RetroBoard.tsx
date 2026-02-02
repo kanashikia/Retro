@@ -15,6 +15,7 @@ import VotingBoard from './VotingBoard';
 import DiscussionBoard from './DiscussionBoard';
 
 const USER_KEY = 'retro_user_v1';
+const ADMIN_KEY = 'retro_admin';
 
 const RetroBoard: React.FC = () => {
     const { id: sessionId } = useParams<{ id: string }>();
@@ -32,11 +33,15 @@ const RetroBoard: React.FC = () => {
             return;
         }
 
+        const storedAdmin = localStorage.getItem(ADMIN_KEY);
         const storedUser = localStorage.getItem(USER_KEY);
 
-        if (storedUser) {
-            const user = JSON.parse(storedUser);
-            setCurrentUser(user);
+        if (storedAdmin) {
+            const adminData = JSON.parse(storedAdmin);
+            setCurrentUser({ ...adminData, votesRemaining: 5 });
+        } else if (storedUser) {
+            const userData = JSON.parse(storedUser);
+            setCurrentUser({ ...userData, votesRemaining: 5 });
         } else {
             setIsJoining(true);
         }
@@ -44,6 +49,7 @@ const RetroBoard: React.FC = () => {
         initializePlaceholderSession(sessionId);
 
         socket.on('session-updated', (updatedSession: SessionState) => {
+            console.log('Received session-updated:', updatedSession);
             setSession(updatedSession);
         });
 
@@ -51,7 +57,13 @@ const RetroBoard: React.FC = () => {
             setParticipants(users);
         });
 
+        socket.on('session-closed', () => {
+            alert("The session has been closed by the administrator.");
+            navigate('/');
+        });
+
         return () => {
+            socket.off('session-closed');
             socket.off('session-updated');
             socket.off('participants-updated');
         };
@@ -74,15 +86,23 @@ const RetroBoard: React.FC = () => {
     };
 
     useEffect(() => {
-        if (currentUser) localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+        if (currentUser) {
+            if (currentUser.isAdmin) {
+                localStorage.setItem(ADMIN_KEY, JSON.stringify(currentUser));
+            } else {
+                localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
+            }
+        }
     }, [currentUser]);
+
+    const isAdmin = currentUser?.isAdmin || (session && currentUser && session.adminId === currentUser.id);
 
     const sortThemesByVotes = (themes: ThemeGroup[]) => {
         return [...themes].sort((a, b) => b.votes - a.votes);
     };
 
     const handleNextPhase = async () => {
-        if (!session || !currentUser?.isAdmin) return;
+        if (!session || !isAdmin) return;
         setError(null);
         const phases = Object.values(RetroPhase);
         const currentIndex = phases.indexOf(session.phase);
@@ -120,8 +140,18 @@ const RetroBoard: React.FC = () => {
         }
     };
 
+    const votesUsed = session?.themes.reduce((acc, theme) =>
+        acc + (theme.voterIds?.filter(id => id === currentUser?.id).length || 0), 0) || 0;
+    const votesRemaining = Math.max(0, 5 - votesUsed);
+
+    const userWithVotes: User | null = currentUser ? {
+        ...currentUser,
+        votesRemaining,
+        isAdmin: !!isAdmin
+    } : null;
+
     const handlePhaseManualChange = (targetPhase: RetroPhase) => {
-        if (!session || !currentUser?.isAdmin) return;
+        if (!session || !isAdmin) return;
 
         let updatedSession = { ...session, phase: targetPhase };
 
@@ -136,7 +166,7 @@ const RetroBoard: React.FC = () => {
 
     if (isJoining && !currentUser) return (
         <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 text-slate-900">
-            <form onSubmit={(e) => { e.preventDefault(); const n = new FormData(e.currentTarget).get('userName'); if (n) { setCurrentUser({ id: crypto.randomUUID(), name: String(n), isAdmin: false, votesRemaining: 5 }); setIsJoining(false); } }} className="max-w-md w-full bg-white rounded-2xl shadow-xl p-10 space-y-8">
+            <form onSubmit={(e) => { e.preventDefault(); const n = new FormData(e.currentTarget).get('userName'); if (n) { setCurrentUser({ id: crypto.randomUUID(), name: String(n), votesRemaining: 5 }); setIsJoining(false); } }} className="max-w-md w-full bg-white rounded-2xl shadow-xl p-10 space-y-8">
                 <div className="text-center space-y-2">
                     <h2 className="text-3xl font-bold">Welcome!</h2>
                     <p className="text-slate-600">Enter your name to join the session.</p>
@@ -151,17 +181,42 @@ const RetroBoard: React.FC = () => {
         </div>
     );
 
-    if (!session || !currentUser) return null;
+    if (!session || !currentUser) return (
+        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
+            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-slate-600 font-medium">Loading session...</p>
+        </div>
+    );
 
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
-            <BoardHeader session={session} currentUser={currentUser} participants={participants} isLoading={isLoading} error={error} onNextPhase={handleNextPhase} onReset={() => { navigate('/'); }} />
-            <PhaseStepper currentPhase={session.phase} isAdmin={currentUser.isAdmin} onPhaseChange={handlePhaseManualChange} />
+            <BoardHeader
+                session={session}
+                currentUser={userWithVotes!}
+                participants={participants}
+                isLoading={isLoading}
+                error={error}
+                onNextPhase={handleNextPhase}
+                onReset={() => {
+                    if (isAdmin) {
+                        socket.emit('close-session', { sessionId: session.id, userId: currentUser.id }, (response: any) => {
+                            if (response.success) {
+                                navigate('/');
+                            } else {
+                                setError("Failed to close session: " + response.error);
+                            }
+                        });
+                    } else {
+                        navigate('/');
+                    }
+                }}
+            />
+            <PhaseStepper currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />
             <main className="flex-1 p-6 lg:p-10 overflow-auto">
-                {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={currentUser} onUpdateSession={(s) => { setSession(s); socket.emit('update-session', { sessionData: s, userId: currentUser.id }); }} />}
-                {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} onUpdateSession={(s) => { setSession(s); socket.emit('update-session', { sessionData: s, userId: currentUser.id }); }} />}
-                {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={currentUser} onUpdateSession={(s) => { setSession(s); socket.emit('update-session', { sessionData: s, userId: currentUser.id }); }} onUpdateUser={setCurrentUser} />}
-                {session.phase === RetroPhase.DISCUSSION && <DiscussionBoard session={session} currentUser={currentUser} onUpdateSession={(s) => { setSession(s); socket.emit('update-session', { sessionData: s, userId: currentUser.id }); }} />}
+                {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (brainstorm)'); setSession(s); socket.emit('update-session', { sessionData: s, userId: currentUser.id }); }} />}
+                {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} onUpdateSession={(s) => { console.log('Emitting update-session (grouping)'); setSession(s); socket.emit('update-session', { sessionData: s, userId: currentUser.id }); }} />}
+                {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (voting)'); setSession(s); socket.emit('update-session', { sessionData: s, userId: currentUser.id }); }} onUpdateUser={setCurrentUser} />}
+                {session.phase === RetroPhase.DISCUSSION && <DiscussionBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (discussion)'); setSession(s); socket.emit('update-session', { sessionData: s, userId: currentUser.id }); }} />}
             </main>
         </div>
     );

@@ -8,8 +8,6 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: password
       MYSQL_DATABASE: retro
-      MYSQL_USER: root
-      MYSQL_PASSWORD: password
     ports:
       - "3306:3306"
     volumes:
@@ -35,7 +33,6 @@ services:
       - JWT_SECRET=super_secret_retro_key_123
     volumes:
       - .:/app
-      - /app/node_modules
 
 volumes:
   mysql_data:

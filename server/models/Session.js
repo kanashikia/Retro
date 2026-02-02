@@ -15,6 +15,10 @@ const Session = sequelize.define('Session', {
         type: DataTypes.JSON,
         defaultValue: {},
     },
+    status: {
+        type: DataTypes.STRING,
+        defaultValue: 'active',
+    },
 }, {
     timestamps: true,
 });
