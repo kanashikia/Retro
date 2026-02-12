@@ -1,0 +1,5 @@
+{
+  "name": "Retro - AI Agile Retrospective",
+  "description": "A collaborative agile retrospective tool with AI-powered automatic grouping of feedback into themes, phased workflows (brainstorming, grouping, voting, discussion), and seamless participant joining.",
+  "requestFramePermissions": []
+}

@@ -1,0 +1,52 @@
+services:
+  db:
+    image: mysql:8.4
+    container_name: retro-db
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-retro}
+    ports:
+      - "3306:3306"
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+  app:
+    build: .
+    container_name: retro-app
+    restart: always
+    dns:
+      - 1.1.1.1
+      - 8.8.8.8
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - DB_HOST=db
+      - DB_USER=${DB_USER:-root}
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=${DB_NAME:-retro}
+      - MAX_VOTES_PER_USER=${MAX_VOTES_PER_USER:-5}
+      - DB_CONNECT_RETRIES=${DB_CONNECT_RETRIES:-20}
+      - DB_CONNECT_RETRY_DELAY_MS=${DB_CONNECT_RETRY_DELAY_MS:-2000}
+      - CORS_ORIGINS=${CORS_ORIGINS:-http://localhost:3000}
+      - VITE_SOCKET_URL=${VITE_SOCKET_URL:-http://localhost:3001}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+    volumes:
+      - .:/app
+      - app_node_modules:/app/node_modules
+
+volumes:
+  mysql_data:
+  app_node_modules:
