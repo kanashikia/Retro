@@ -47,7 +47,9 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
               <div className="flex-1 space-y-3 pt-1">
                 <p className="text-slate-900 text-xl md:text-2xl font-semibold leading-relaxed">{t.text}</p>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-500 font-bold uppercase tracking-tighter">Shared by <span className="text-slate-800">{t.author}</span></span>
+                  <span className="text-sm text-slate-500 font-bold uppercase tracking-tighter">
+                    {t.column} • Shared by <span className="text-slate-800">{t.author}</span>
+                  </span>
                 </div>
               </div>
             </div>
