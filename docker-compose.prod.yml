@@ -22,8 +22,6 @@ services:
           memory: 256M
     volumes:
       - mysql_data_prod:/var/lib/mysql
-    networks:
-      - retro_network
 
   app:
     build: 
@@ -58,12 +56,6 @@ services:
       - DB_NAME=${DB_NAME:-retro}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
-    networks:
-      - retro_network
 
 volumes:
   mysql_data_prod:
-
-networks:
-  retro_network:
-    name: retro_network
