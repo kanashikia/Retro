@@ -174,7 +174,8 @@ const sanitizeUser = (user) => {
     return {
         id,
         name: name || 'Anonymous',
-        isAdmin: false
+        isAdmin: false,
+        isReady: !!user?.isReady
     };
 };
 
@@ -369,6 +370,14 @@ io.on('connection', (socket) => {
                 updatedData.currentThemeIndex = existingData?.currentThemeIndex;
                 updatedData.brainstormTimerEndsAt = existingData?.brainstormTimerEndsAt;
                 updatedData.brainstormTimerDuration = existingData?.brainstormTimerDuration;
+            } else if (sessionData.phase && sessionData.phase !== existingData?.phase) {
+                // Reset ready status for everyone when admin changes phase
+                for (const [sid, data] of socketToUser.entries()) {
+                    if (data.sessionId === sessionId) {
+                        data.user.isReady = false;
+                        socketToUser.set(sid, data);
+                    }
+                }
             }
 
             // In brainstorm, non-admin clients receive a filtered ticket view.
@@ -639,7 +648,22 @@ ${JSON.stringify(ticketAliasData)}
         }
     });
 
+    socket.on('toggle-ready', ({ sessionId, isReady }) => {
+        const userData = socketToUser.get(socket.id);
+        if (!userData || userData.sessionId !== sessionId) return;
+
+        userData.user.isReady = !!isReady;
+        socketToUser.set(socket.id, userData);
+
+        console.log(`User ${userData.user.name} toggled ready: ${userData.user.isReady}`);
+
+        // Broadcast updated participant list
+        const participants = getParticipants(sessionId);
+        io.to(sessionId).emit('participants-updated', participants);
+    });
+
     socket.on('disconnect', () => {
+
         const userData = socketToUser.get(socket.id);
         if (userData) {
             const { sessionId } = userData;

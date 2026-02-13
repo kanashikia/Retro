@@ -8,13 +8,19 @@ import Timer from './Timer';
 interface Props {
   session: SessionState;
   currentUser: User;
+  participants: User[];
   onUpdateSession: (s: SessionState) => void;
+  onToggleReady: (isReady: boolean) => void;
 }
 
-const BrainstormBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession }) => {
+const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, onUpdateSession, onToggleReady }) => {
   const [activeCol, setActiveCol] = useState<ColumnType | null>(null);
   const [editingTicketId, setEditingTicketId] = useState<string | null>(null);
   const [text, setText] = useState("");
+
+  const isReady = participants.find(p => p.id === currentUser.id)?.isReady || false;
+  const readyCount = participants.filter(p => !p.isAdmin && p.isReady).length;
+  const totalParticipants = participants.filter(p => !p.isAdmin).length;
 
   const canViewTicket = (ticket: Ticket) => {
     if (currentUser.isAdmin) return true;
@@ -61,20 +67,20 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
     <div className="flex flex-col gap-8 h-full">
       <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
         {currentUser.isAdmin ? (
-          <>
-            <div className="flex items-center gap-4">
-              <span className="text-sm font-bold text-slate-700">Brainstorm Timer:</span>
-              <select
-                value={session.brainstormTimerDuration || 10}
-                onChange={(e) => onUpdateSession({ ...session, brainstormTimerDuration: Number(e.target.value) })}
-                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:border-indigo-500"
-              >
-                {[1, 2, 5, 10, 15, 20, 30].map(m => (
-                  <option key={m} value={m}>{m} minutes</option>
-                ))}
-              </select>
-            </div>
+          <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-6">
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-bold text-slate-700">Brainstorm Timer:</span>
+                <select
+                  value={session.brainstormTimerDuration || 10}
+                  onChange={(e) => onUpdateSession({ ...session, brainstormTimerDuration: Number(e.target.value) })}
+                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:border-indigo-500"
+                >
+                  {[1, 2, 5, 10, 15, 20, 30].map(m => (
+                    <option key={m} value={m}>{m} minutes</option>
+                  ))}
+                </select>
+              </div>
               {session.brainstormTimerEndsAt && (
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Remaining:</span>
@@ -103,20 +109,70 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
                 )}
               </div>
             </div>
-          </>
-        ) : (
-          <div className="w-full flex items-center justify-center py-2">
-            {session.brainstormTimerEndsAt ? (
-              <div className="flex items-center gap-4">
-                <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Brainstorming ending in:</span>
-                <Timer endsAt={session.brainstormTimerEndsAt} />
+
+            <div className="flex items-center gap-6 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100 shadow-inner">
+              <div className="flex flex-col border-r border-slate-200 pr-6">
+                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Status</span>
+                <span className="text-lg font-black text-indigo-600 leading-none">{readyCount}<span className="text-slate-300 mx-1">/</span><span className="text-slate-400">{totalParticipants}</span></span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mt-1">Ready</span>
               </div>
-            ) : (
-              <span className="text-sm font-medium text-slate-500 italic">Waiting for admin to start the timer...</span>
-            )}
+              <div className="flex flex-wrap gap-2 max-w-[300px] lg:max-w-md">
+                {participants
+                  .filter(p => !p.isAdmin)
+                  .sort((a, b) => (a.isReady === b.isReady ? 0 : a.isReady ? 1 : -1))
+                  .map(p => (
+                    <div
+                      key={p.id}
+                      title={`${p.name}: ${p.isReady ? "Ready" : "Still brainstorming"}`}
+                      className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-black shadow-sm transition-all relative
+                        ${p.isReady
+                          ? 'bg-emerald-500 text-white border-emerald-200'
+                          : 'bg-white text-slate-400 border-slate-200'}`}
+                    >
+                      {p.name[0].toUpperCase()}
+                      {p.isReady && (
+                        <div className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-emerald-600 rounded-full border border-white flex items-center justify-center shadow-sm">
+                          <svg className="w-2 h-2 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="w-full flex items-center justify-between py-2">
+            <div className="flex items-center gap-8">
+              {session.brainstormTimerEndsAt ? (
+                <div className="flex items-center gap-4">
+                  <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Brainstorming ending in:</span>
+                  <Timer endsAt={session.brainstormTimerEndsAt} />
+                </div>
+              ) : (
+                <span className="text-sm font-medium text-slate-400 italic">Collaborative brainstorming in progress...</span>
+              )}
+            </div>
+
+            <button
+              onClick={() => onToggleReady(!isReady)}
+              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-base font-bold transition-all shadow-md active:scale-95
+                ${isReady
+                  ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-500'
+                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+            >
+              {isReady ? (
+                <>
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
+                  I'm done
+                </>
+              ) : (
+                "I'm done"
+              )}
+            </button>
           </div>
         )}
       </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {Object.values(ColumnType).map((col) => (
           <div key={col} className="flex flex-col gap-6">

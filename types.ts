@@ -37,6 +37,7 @@ export interface User {
   name: string;
   isAdmin: boolean;
   votesRemaining: number;
+  isReady?: boolean;
 }
 
 export interface SessionState {

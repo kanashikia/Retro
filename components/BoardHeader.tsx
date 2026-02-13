@@ -54,10 +54,17 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
             {participants.filter(p => p.id !== currentUser.id).slice(0, 5).map(p => (
               <div
                 key={p.id}
-                className={`w-10 h-10 rounded-full border-2 border-white flex items-center justify-center text-xs font-bold shadow-sm transition-transform hover:scale-110 hover:z-10 ${getUserColor(p.name)}`}
-                title={p.name}
+                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xs font-bold shadow-sm transition-transform hover:scale-110 hover:z-10 relative 
+                  ${p.isReady ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-white'} 
+                  ${getUserColor(p.name)}`}
+                title={`${p.name}${p.isReady ? ' (Ready)' : ''}`}
               >
                 {p.name.charAt(0).toUpperCase()}
+                {p.isReady && (
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                  </div>
+                )}
               </div>
             ))}
             {participants.length > 6 && (
