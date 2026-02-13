@@ -22,6 +22,7 @@ export interface Ticket {
   votes: number;
   voterIds: string[];
   themeId?: string;
+  reactions?: Record<string, string[]>; // emoji -> userIds
 }
 
 export interface ThemeGroup {

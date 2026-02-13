@@ -422,6 +422,44 @@ io.on('connection', (socket) => {
         }
     });
 
+    socket.on('toggle-reaction', async ({ sessionId, ticketId, emoji }) => {
+        const actor = socketToUser.get(socket.id)?.user;
+        if (!sessionId || !ticketId || !emoji || !actor?.id) return;
+
+        try {
+            const session = await Session.findOne({ where: { sessionId } });
+            if (!session) return;
+
+            const sessionData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
+            if (sessionData.phase === 'BRAINSTORM') return;
+
+            const tickets = Array.isArray(sessionData.tickets) ? sessionData.tickets : [];
+            const ticketIndex = tickets.findIndex(t => t.id === ticketId);
+
+            if (ticketIndex === -1) return;
+
+            const ticket = tickets[ticketIndex];
+            const reactions = ticket.reactions || {};
+            const userIds = reactions[emoji] || [];
+
+            if (userIds.includes(actor.id)) {
+                reactions[emoji] = userIds.filter(id => id !== actor.id);
+                if (reactions[emoji].length === 0) delete reactions[emoji];
+            } else {
+                reactions[emoji] = [...userIds, actor.id];
+            }
+
+            ticket.reactions = reactions;
+            tickets[ticketIndex] = ticket;
+            sessionData.tickets = tickets;
+
+            await Session.update({ data: sessionData }, { where: { sessionId } });
+            emitSessionUpdateForRoom(sessionId, sessionData);
+        } catch (error) {
+            console.error('Error in toggle-reaction:', error);
+        }
+    });
+
     socket.on('ai-group-tickets', async ({ sessionId, tickets }, callback) => {
         const actor = socketToUser.get(socket.id)?.user;
         if (!sessionId || !tickets || !actor?.id) return callback({ error: 'Missing data' });

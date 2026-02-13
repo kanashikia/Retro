@@ -3,14 +3,17 @@ import React from 'react';
 import { ChevronLeft, ChevronRight, LayoutDashboard, Vote } from 'lucide-react';
 import { SessionState, User } from '../types';
 import { getColumnColorClass, getColumnSecondaryColorClass } from '../utils/colors';
+import ReactionBadge from './ReactionBadge';
+import ReactionPicker from './ReactionPicker';
 
 interface Props {
   session: SessionState;
   currentUser: User;
   onUpdateSession: (s: SessionState) => void;
+  onToggleReaction: (ticketId: string, emoji: string) => void;
 }
 
-const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession }) => {
+const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onToggleReaction }) => {
   const currentTheme = (session.themes || [])[session.currentThemeIndex];
 
   if (!currentTheme) return (
@@ -47,13 +50,31 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
               </div>
               <div className="flex-1 space-y-3 pt-1">
                 <p className="text-slate-900 text-xl md:text-2xl font-semibold leading-relaxed">{t.text}</p>
-                <div className="flex items-center gap-2">
-                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-black uppercase tracking-widest border ${getColumnSecondaryColorClass(t.column)}`}>
-                    {t.column}
-                  </span>
-                  <span className="text-sm text-slate-500 font-bold uppercase tracking-tighter">
-                    • Shared by <span className="text-slate-800">{t.author}</span>
-                  </span>
+
+                {(t.reactions && Object.keys(t.reactions).length > 0) && (
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    {Object.entries(t.reactions).map(([emoji, userIds]) => (
+                      <ReactionBadge
+                        key={emoji}
+                        emoji={emoji}
+                        userIds={userIds}
+                        currentUserId={currentUser.id}
+                        onToggle={(e) => onToggleReaction(t.id, e)}
+                      />
+                    ))}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-4 mt-4">
+                  <div className="flex items-center gap-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-black uppercase tracking-widest border ${getColumnSecondaryColorClass(t.column)}`}>
+                      {t.column}
+                    </span>
+                    <span className="text-sm text-slate-500 font-bold uppercase tracking-tighter">
+                      • Shared by <span className="text-slate-800">{t.author}</span>
+                    </span>
+                  </div>
+                  <ReactionPicker onSelect={(emoji) => onToggleReaction(t.id, emoji)} />
                 </div>
               </div>
             </div>

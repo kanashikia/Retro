@@ -223,6 +223,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                     ) : (
                       <>
                         <p className="text-slate-800 text-base lg:text-lg leading-relaxed whitespace-pre-wrap">{ticket.text}</p>
+
                         <div className="mt-5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-600 uppercase">{ticket.author[0]}</div>

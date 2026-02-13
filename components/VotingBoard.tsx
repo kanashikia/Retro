@@ -3,15 +3,18 @@ import React from 'react';
 import { Vote, Plus } from 'lucide-react';
 import { SessionState, User } from '../types';
 import { getColumnColorClass } from '../utils/colors';
+import ReactionBadge from './ReactionBadge';
+import ReactionPicker from './ReactionPicker';
 
 interface Props {
   session: SessionState;
   currentUser: User;
   onUpdateSession: (s: SessionState) => void;
   onUpdateUser: (u: User) => void;
+  onToggleReaction: (ticketId: string, emoji: string) => void;
 }
 
-const VotingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onUpdateUser }) => {
+const VotingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onUpdateUser, onToggleReaction }) => {
   const handleVote = (themeId: string) => {
     if (currentUser.votesRemaining <= 0) return;
 
@@ -62,7 +65,23 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, o
             <div className="flex-1 bg-slate-50/50 rounded-2xl p-4 space-y-3 max-h-[300px] overflow-y-auto no-scrollbar border border-slate-100/50">
               {(session.tickets || []).filter(t => t.themeId === theme.id).map(t => (
                 <div key={t.id} className={`bg-white p-4 rounded-xl border-2 text-sm md:text-base text-slate-700 shadow-sm leading-relaxed ${getColumnColorClass(t.column)}`}>
-                  {t.text}
+                  <p>{t.text}</p>
+                  {(t.reactions && Object.keys(t.reactions).length > 0) && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {Object.entries(t.reactions).map(([emoji, userIds]) => (
+                        <ReactionBadge
+                          key={emoji}
+                          emoji={emoji}
+                          userIds={userIds}
+                          currentUserId={currentUser.id}
+                          onToggle={(e) => onToggleReaction(t.id, e)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <ReactionPicker onSelect={(emoji) => onToggleReaction(t.id, emoji)} />
+                  </div>
                 </div>
               ))}
             </div>

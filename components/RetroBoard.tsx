@@ -206,6 +206,11 @@ const RetroBoard: React.FC = () => {
         socket.emit('toggle-ready', { sessionId, isReady });
     };
 
+    const handleToggleReaction = (ticketId: string, emoji: string) => {
+        if (!sessionId) return;
+        socket.emit('toggle-reaction', { sessionId: sessionId, ticketId, emoji });
+    };
+
     return (
         <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
             <BoardHeader
@@ -232,9 +237,9 @@ const RetroBoard: React.FC = () => {
             <PhaseStepper currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />
             <main className="flex-1 p-6 lg:p-10 overflow-auto">
                 {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateSession={(s) => { console.log('Emitting update-session (brainstorm)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReady={handleToggleReady} />}
-                {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} onUpdateSession={(s) => { console.log('Emitting update-session (grouping)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} />}
-                {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (voting)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onUpdateUser={setCurrentUser} />}
-                {session.phase === RetroPhase.DISCUSSION && <DiscussionBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (discussion)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} />}
+                {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (grouping)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReaction={handleToggleReaction} />}
+                {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (voting)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onUpdateUser={setCurrentUser} onToggleReaction={handleToggleReaction} />}
+                {session.phase === RetroPhase.DISCUSSION && <DiscussionBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (discussion)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReaction={handleToggleReaction} />}
             </main>
         </div>
     );

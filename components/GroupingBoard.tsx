@@ -1,15 +1,19 @@
 
 import React from 'react';
 import { Sparkles, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
-import { SessionState, ThemeGroup } from '../types';
+import { SessionState, ThemeGroup, User } from '../types';
 import { getColumnColorClass } from '../utils/colors';
+import ReactionBadge from './ReactionBadge';
+import ReactionPicker from './ReactionPicker';
 
 interface Props {
   session: SessionState;
+  currentUser: User;
   onUpdateSession: (s: SessionState) => void;
+  onToggleReaction: (ticketId: string, emoji: string) => void;
 }
 
-const GroupingBoard: React.FC<Props> = ({ session, onUpdateSession }) => {
+const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onToggleReaction }) => {
   const [isAddingTheme, setIsAddingTheme] = React.useState(false);
   const [newThemeName, setNewThemeName] = React.useState("");
   const [editingThemeId, setEditingThemeId] = React.useState<string | null>(null);
@@ -111,7 +115,23 @@ const GroupingBoard: React.FC<Props> = ({ session, onUpdateSession }) => {
               {unassignedTickets.map(t => (
                 <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
                   className={`bg-white p-4 rounded-xl border-2 text-sm md:text-base text-slate-800 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
-                  {t.text}
+                  <p>{t.text}</p>
+                  {(t.reactions && Object.keys(t.reactions).length > 0) && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {Object.entries(t.reactions).map(([emoji, userIds]) => (
+                        <ReactionBadge
+                          key={emoji}
+                          emoji={emoji}
+                          userIds={userIds}
+                          currentUserId={currentUser.id}
+                          onToggle={(e) => onToggleReaction(t.id, e)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <ReactionPicker onSelect={(emoji) => onToggleReaction(t.id, emoji)} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -152,7 +172,23 @@ const GroupingBoard: React.FC<Props> = ({ session, onUpdateSession }) => {
               {(session.tickets || []).filter(t => t.themeId === theme.id).map(t => (
                 <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
                   className={`bg-slate-50 p-4 rounded-xl border-2 text-sm md:text-base text-slate-800 cursor-grab active:cursor-grabbing hover:bg-white hover:border-indigo-300 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
-                  {t.text}
+                  <p>{t.text}</p>
+                  {(t.reactions && Object.keys(t.reactions).length > 0) && (
+                    <div className="mt-2 flex flex-wrap gap-1">
+                      {Object.entries(t.reactions).map(([emoji, userIds]) => (
+                        <ReactionBadge
+                          key={emoji}
+                          emoji={emoji}
+                          userIds={userIds}
+                          currentUserId={currentUser.id}
+                          onToggle={(e) => onToggleReaction(t.id, e)}
+                        />
+                      ))}
+                    </div>
+                  )}
+                  <div className="mt-2">
+                    <ReactionPicker onSelect={(emoji) => onToggleReaction(t.id, emoji)} />
+                  </div>
                 </div>
               ))}
               {(session.tickets || []).filter(t => t.themeId === theme.id).length === 0 && (
