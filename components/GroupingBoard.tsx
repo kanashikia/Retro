@@ -2,6 +2,7 @@
 import React from 'react';
 import { Sparkles, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import { SessionState, ThemeGroup } from '../types';
+import { getColumnColorClass } from '../utils/colors';
 
 interface Props {
   session: SessionState;
@@ -109,7 +110,7 @@ const GroupingBoard: React.FC<Props> = ({ session, onUpdateSession }) => {
             <div className="flex flex-col gap-3 flex-1">
               {unassignedTickets.map(t => (
                 <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
-                  className="bg-white p-4 rounded-xl border border-slate-200 text-sm md:text-base text-slate-800 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all shadow-sm">
+                  className={`bg-white p-4 rounded-xl border-2 text-sm md:text-base text-slate-800 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
                   {t.text}
                 </div>
               ))}
@@ -150,7 +151,7 @@ const GroupingBoard: React.FC<Props> = ({ session, onUpdateSession }) => {
             <div className="flex flex-col gap-3 flex-1">
               {(session.tickets || []).filter(t => t.themeId === theme.id).map(t => (
                 <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
-                  className="bg-slate-50 p-4 rounded-xl border border-slate-200 text-sm md:text-base text-slate-800 cursor-grab active:cursor-grabbing hover:bg-white hover:border-indigo-300 transition-all shadow-sm">
+                  className={`bg-slate-50 p-4 rounded-xl border-2 text-sm md:text-base text-slate-800 cursor-grab active:cursor-grabbing hover:bg-white hover:border-indigo-300 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
                   {t.text}
                 </div>
               ))}

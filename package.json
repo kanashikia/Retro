@@ -7,6 +7,7 @@
   "scripts": {
     "dev": "vite",
     "server": "nodemon server/index.js",
+    "dev:all": "concurrently \"npm run dev\" \"npm run server\"",
     "build": "vite build",
     "preview": "vite preview"
   },
@@ -25,12 +26,13 @@
     "react-router-dom": "^7.13.0",
     "sequelize": "^6.37.7",
     "socket.io": "^4.8.3",
-    "socket.io-client": "^4.8.3"
+    "socket.io-client": "^4.8.3",
+    "nodemon": "^3.1.11",
+    "concurrently": "^9.1.2"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
-    "nodemon": "^3.1.11",
     "typescript": "~5.8.2",
     "vite": "^6.2.0"
   }

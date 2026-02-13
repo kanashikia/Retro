@@ -2,6 +2,7 @@
 import React from 'react';
 import { Vote, Plus } from 'lucide-react';
 import { SessionState, User } from '../types';
+import { getColumnColorClass } from '../utils/colors';
 
 interface Props {
   session: SessionState;
@@ -60,7 +61,7 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, o
 
             <div className="flex-1 bg-slate-50/50 rounded-2xl p-4 space-y-3 max-h-[300px] overflow-y-auto no-scrollbar border border-slate-100/50">
               {(session.tickets || []).filter(t => t.themeId === theme.id).map(t => (
-                <div key={t.id} className="bg-white p-4 rounded-xl border border-slate-200 text-sm md:text-base text-slate-700 shadow-sm leading-relaxed">
+                <div key={t.id} className={`bg-white p-4 rounded-xl border-2 text-sm md:text-base text-slate-700 shadow-sm leading-relaxed ${getColumnColorClass(t.column)}`}>
                   {t.text}
                 </div>
               ))}

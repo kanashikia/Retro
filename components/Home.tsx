@@ -31,6 +31,8 @@ const Home: React.FC = () => {
             if (response.ok) {
                 const data = await response.json();
                 setHistory(data);
+            } else if (response.status === 401) {
+                handleLogout();
             }
         } catch (error) {
             console.error("Error fetching history:", error);
@@ -69,6 +71,8 @@ const Home: React.FC = () => {
             });
             if (response.ok) {
                 navigate(`/retro/${newId}`);
+            } else if (response.status === 401) {
+                handleLogout();
             } else {
                 console.error("Failed to pre-create session");
             }

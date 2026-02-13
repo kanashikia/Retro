@@ -2,6 +2,7 @@
 import React, { useState } from 'react';
 import { Plus, Send, Trash2 } from 'lucide-react';
 import { SessionState, User, ColumnType, Ticket } from '../types';
+import { getColumnColorClass } from '../utils/colors';
 
 interface Props {
   session: SessionState;
@@ -88,7 +89,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
             {(session.tickets || [])
               .filter(t => t.column === col && canViewTicket(t))
               .map(ticket => (
-                <div key={ticket.id} className="p-6 rounded-2xl border border-slate-200 bg-white group relative shadow-sm hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-2">
+                <div key={ticket.id} className={`p-6 rounded-2xl border-2 bg-white group relative shadow-sm hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-2 ${getColumnColorClass(ticket.column)}`}>
                   {editingTicketId === ticket.id ? (
                     <div className="flex flex-col gap-3">
                       <textarea

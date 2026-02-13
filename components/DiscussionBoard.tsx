@@ -2,6 +2,7 @@
 import React from 'react';
 import { ChevronLeft, ChevronRight, LayoutDashboard, Vote } from 'lucide-react';
 import { SessionState, User } from '../types';
+import { getColumnColorClass, getColumnSecondaryColorClass } from '../utils/colors';
 
 interface Props {
   session: SessionState;
@@ -40,15 +41,18 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
         {(session.tickets || [])
           .filter(t => t.themeId === currentTheme.id)
           .map(t => (
-            <div key={t.id} className="bg-white p-8 rounded-[2.5rem] border-2 border-slate-100 shadow-sm flex items-start gap-8 hover:border-indigo-200 transition-all group">
+            <div key={t.id} className={`bg-white p-8 rounded-[2.5rem] border-2 shadow-sm flex items-start gap-8 hover:border-indigo-200 transition-all group ${getColumnColorClass(t.column)}`}>
               <div className="w-12 h-12 bg-slate-50 rounded-2xl flex items-center justify-center shrink-0 border border-slate-100 group-hover:bg-indigo-50 group-hover:border-indigo-100 transition-colors">
                 <span className="text-lg font-black text-slate-300 group-hover:text-indigo-600 leading-none">#</span>
               </div>
               <div className="flex-1 space-y-3 pt-1">
                 <p className="text-slate-900 text-xl md:text-2xl font-semibold leading-relaxed">{t.text}</p>
                 <div className="flex items-center gap-2">
+                  <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-black uppercase tracking-widest border ${getColumnSecondaryColorClass(t.column)}`}>
+                    {t.column}
+                  </span>
                   <span className="text-sm text-slate-500 font-bold uppercase tracking-tighter">
-                    {t.column} • Shared by <span className="text-slate-800">{t.author}</span>
+                    • Shared by <span className="text-slate-800">{t.author}</span>
                   </span>
                 </div>
               </div>
