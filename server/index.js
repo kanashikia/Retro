@@ -403,7 +403,7 @@ io.on('connection', (socket) => {
                 updatedData.tickets = existingData?.tickets || [];
             }
 
-            if (!isAdmin && ['GROUPING', 'DISCUSSION'].includes(existingData?.phase)) {
+            if (!isAdmin && existingData?.phase === 'DISCUSSION') {
                 updatedData.tickets = existingData?.tickets || [];
                 updatedData.themes = existingData?.themes || [];
             }
