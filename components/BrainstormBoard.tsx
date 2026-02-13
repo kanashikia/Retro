@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { Plus, Send, Trash2 } from 'lucide-react';
 import { SessionState, User, ColumnType, Ticket } from '../types';
 import { getColumnColorClass } from '../utils/colors';
+import Timer from './Timer';
 
 interface Props {
   session: SessionState;
@@ -58,43 +59,64 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
 
   return (
     <div className="flex flex-col gap-8 h-full">
-      {currentUser.isAdmin && (
-        <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <span className="text-sm font-bold text-slate-700">Brainstorm Timer:</span>
-            <select
-              value={session.brainstormTimerDuration || 10}
-              onChange={(e) => onUpdateSession({ ...session, brainstormTimerDuration: Number(e.target.value) })}
-              className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:border-indigo-500"
-            >
-              {[1, 2, 5, 10, 15, 20, 30].map(m => (
-                <option key={m} value={m}>{m} minutes</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex gap-2">
-            {!session.brainstormTimerEndsAt ? (
-              <button
-                onClick={() => {
-                  const duration = session.brainstormTimerDuration || 10;
-                  const endsAt = Date.now() + duration * 60 * 1000;
-                  onUpdateSession({ ...session, brainstormTimerEndsAt: endsAt });
-                }}
-                className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
+      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+        {currentUser.isAdmin ? (
+          <>
+            <div className="flex items-center gap-4">
+              <span className="text-sm font-bold text-slate-700">Brainstorm Timer:</span>
+              <select
+                value={session.brainstormTimerDuration || 10}
+                onChange={(e) => onUpdateSession({ ...session, brainstormTimerDuration: Number(e.target.value) })}
+                className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:border-indigo-500"
               >
-                Start Timer
-              </button>
+                {[1, 2, 5, 10, 15, 20, 30].map(m => (
+                  <option key={m} value={m}>{m} minutes</option>
+                ))}
+              </select>
+            </div>
+            <div className="flex items-center gap-6">
+              {session.brainstormTimerEndsAt && (
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Remaining:</span>
+                  <Timer endsAt={session.brainstormTimerEndsAt} />
+                </div>
+              )}
+              <div className="flex gap-2">
+                {!session.brainstormTimerEndsAt ? (
+                  <button
+                    onClick={() => {
+                      const duration = session.brainstormTimerDuration || 10;
+                      const endsAt = Date.now() + duration * 60 * 1000;
+                      onUpdateSession({ ...session, brainstormTimerEndsAt: endsAt });
+                    }}
+                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
+                  >
+                    Start Timer
+                  </button>
+                ) : (
+                  <button
+                    onClick={() => onUpdateSession({ ...session, brainstormTimerEndsAt: null })}
+                    className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
+                  >
+                    Reset Timer
+                  </button>
+                )}
+              </div>
+            </div>
+          </>
+        ) : (
+          <div className="w-full flex items-center justify-center py-2">
+            {session.brainstormTimerEndsAt ? (
+              <div className="flex items-center gap-4">
+                <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Brainstorming ending in:</span>
+                <Timer endsAt={session.brainstormTimerEndsAt} />
+              </div>
             ) : (
-              <button
-                onClick={() => onUpdateSession({ ...session, brainstormTimerEndsAt: null })}
-                className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
-              >
-                Reset Timer
-              </button>
+              <span className="text-sm font-medium text-slate-500 italic">Waiting for admin to start the timer...</span>
             )}
           </div>
-        </div>
-      )}
+        )}
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {Object.values(ColumnType).map((col) => (
           <div key={col} className="flex flex-col gap-6">

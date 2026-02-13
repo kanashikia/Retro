@@ -45,7 +45,7 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
           {currentUser.isAdmin && <span className="bg-indigo-600 text-white text-[10px] uppercase px-1.5 py-0.5 rounded ml-1 font-black">Admin</span>}
         </div>
 
-        {session.phase === RetroPhase.BRAINSTORM && session.brainstormTimerEndsAt && (
+        {session.brainstormTimerEndsAt && (
           <Timer endsAt={session.brainstormTimerEndsAt} />
         )}
 
