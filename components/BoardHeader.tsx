@@ -2,6 +2,7 @@
 import React from 'react';
 import { LayoutDashboard, Users, Sparkles, ChevronRight, Copy, LogOut, AlertCircle } from 'lucide-react';
 import { SessionState, User, RetroPhase } from '../types';
+import Timer from './Timer';
 
 interface Props {
   session: SessionState;
@@ -43,6 +44,10 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
           <span>{currentUser.name}</span>
           {currentUser.isAdmin && <span className="bg-indigo-600 text-white text-[10px] uppercase px-1.5 py-0.5 rounded ml-1 font-black">Admin</span>}
         </div>
+
+        {session.phase === RetroPhase.BRAINSTORM && session.brainstormTimerEndsAt && (
+          <Timer endsAt={session.brainstormTimerEndsAt} />
+        )}
 
         <div className="flex items-center">
           <div className="flex -space-x-3 items-center">

@@ -46,4 +46,6 @@ export interface SessionState {
   themes: ThemeGroup[];
   currentThemeIndex: number;
   adminId: string;
+  brainstormTimerEndsAt?: number | null;
+  brainstormTimerDuration?: number;
 }

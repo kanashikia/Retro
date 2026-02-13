@@ -286,7 +286,9 @@ io.on('connection', (socket) => {
                         tickets: [],
                         themes: [],
                         currentThemeIndex: 0,
-                        adminId: safeUser.id
+                        adminId: safeUser.id,
+                        brainstormTimerDuration: 10,
+                        brainstormTimerEndsAt: null
                     };
                     const newSession = await Session.create({
                         sessionId,
@@ -365,6 +367,8 @@ io.on('connection', (socket) => {
                 updatedData.adminId = existingData?.adminId;
                 updatedData.phase = existingData?.phase;
                 updatedData.currentThemeIndex = existingData?.currentThemeIndex;
+                updatedData.brainstormTimerEndsAt = existingData?.brainstormTimerEndsAt;
+                updatedData.brainstormTimerDuration = existingData?.brainstormTimerDuration;
             }
 
             // In brainstorm, non-admin clients receive a filtered ticket view.
