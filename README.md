@@ -112,3 +112,7 @@ This application uses a server-side proxy to communicate with the Gemini API. Th
 - **Protected admin HTTP endpoints**: session creation/history require `Authorization: Bearer <token>`.
 - **Basic API abuse protection**: auth routes include request-rate limiting and secure response headers.
 - **CORS allowlist support**: configure `CORS_ORIGINS` explicitly in production.
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
