@@ -92,4 +92,35 @@ export const themes: Theme[] = [
             ticketBackground: '#0a0a0a',
         },
     },
+    {
+        id: 'ff7',
+        name: 'Final Fantasy VII',
+        backgroundImage: 'https://www.startpage.com/av/proxy-image?piurl=https%3A%2F%2Fcdn.wccftech.com%2Fwp-content%2Fuploads%2F2024%2F02%2Ffinal-fantasy-vii-rebirth-HD-scaled.jpg&sp=1771079036Tcbb5c5adee46708cdfbbb10c4f2ae729609f54b1acbd06fc4f7591298b729260', // Midgar/Buster Sword vibe
+        fontFamily: '"Orbitron", sans-serif',
+        customCss: `
+            .bg-surface, .bg-secondary, .group\\/item:hover {
+                background: linear-gradient(180deg, #000050 0%, #000020 100%) !important;
+                border: 2px solid #909090 !important;
+                border-radius: 4px !important;
+                box-shadow: 0 0 0 1px #505050, inset 0 0 10px rgba(0,0,0,0.5) !important;
+            }
+            button.bg-primary {
+                background: linear-gradient(180deg, #008080 0%, #004040 100%) !important;
+                border: 1px solid #a0f0f0 !important;
+                box-shadow: 0 0 5px #00ffc0 !important;
+            }
+            .text-text { color: #e0e0e0 !important; text-shadow: 1px 1px 0 #000; }
+        `,
+        colors: {
+            background: '#050510',
+            surface: '#000030', // Classic Menu Blue
+            primary: '#00fa9a', // Mako Green
+            primaryHover: '#00d080',
+            secondary: '#101030',
+            text: '#ffffff',
+            textMuted: '#a0a0b0',
+            border: '#707070',
+            ticketBackground: '#000040',
+        },
+    },
 ];
