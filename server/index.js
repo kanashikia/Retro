@@ -289,7 +289,8 @@ io.on('connection', (socket) => {
                         currentThemeIndex: 0,
                         adminId: safeUser.id,
                         brainstormTimerDuration: 10,
-                        brainstormTimerEndsAt: null
+                        brainstormTimerEndsAt: null,
+                        defaultThemeId: 'light'
                     };
                     const newSession = await Session.create({
                         sessionId,
@@ -370,6 +371,7 @@ io.on('connection', (socket) => {
                 updatedData.currentThemeIndex = existingData?.currentThemeIndex;
                 updatedData.brainstormTimerEndsAt = existingData?.brainstormTimerEndsAt;
                 updatedData.brainstormTimerDuration = existingData?.brainstormTimerDuration;
+                updatedData.defaultThemeId = existingData?.defaultThemeId;
             } else if (sessionData.phase && sessionData.phase !== existingData?.phase) {
                 // Reset ready status for everyone when admin changes phase
                 for (const [sid, data] of socketToUser.entries()) {

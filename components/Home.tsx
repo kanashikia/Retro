@@ -90,7 +90,7 @@ const Home: React.FC = () => {
     if (!admin) return null;
 
     return (
-        <div className="min-h-screen bg-background flex flex-col text-text transition-colors duration-300">
+        <div className="min-h-screen flex flex-col text-text transition-colors duration-300">
             <nav className="bg-surface border-b border-border px-6 py-4 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">

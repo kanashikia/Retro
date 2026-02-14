@@ -3,6 +3,7 @@ import { v4 as uuidv4 } from 'uuid';
 import { useParams, useNavigate } from 'react-router-dom';
 import { RetroPhase, ColumnType, User, SessionState, ThemeGroup } from '../types';
 import { groupTicketsWithAI } from '../services/geminiService';
+import { useTheme } from '../context/ThemeContext';
 import { io } from 'socket.io-client';
 
 const socket = io(undefined, {
@@ -29,6 +30,7 @@ const RetroBoard: React.FC = () => {
     const [isJoining, setIsJoining] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { setSessionDefaultThemeId } = useTheme();
 
     useEffect(() => {
         if (!sessionId) {
@@ -50,9 +52,10 @@ const RetroBoard: React.FC = () => {
         }
 
         socket.on('session-updated', (updatedSession: SessionState) => {
-            console.log('Received session-updated via socket:', updatedSession);
+            // No console.log to avoid spam
             setSession(prev => {
                 if (!prev || JSON.stringify(prev) !== JSON.stringify(updatedSession)) {
+                    setSessionDefaultThemeId(updatedSession.defaultThemeId || 'light');
                     return updatedSession;
                 }
                 return prev;
@@ -212,7 +215,7 @@ const RetroBoard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-background flex flex-col text-text transition-colors duration-300">
+        <div className="min-h-screen flex flex-col text-text transition-colors duration-300">
             <BoardHeader
                 session={session}
                 currentUser={userWithVotes!}
@@ -233,6 +236,7 @@ const RetroBoard: React.FC = () => {
                         navigate('/');
                     }
                 }}
+                onUpdateSession={(updates) => socket.emit('update-session', { sessionData: { ...session, ...updates } })}
             />
             <PhaseStepper currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />
             <main className="flex-1 p-6 lg:p-10 overflow-auto">

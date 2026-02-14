@@ -4,29 +4,46 @@ import { Theme, themes } from '../themes';
 interface ThemeContextType {
     currentTheme: Theme;
     setTheme: (themeId: string) => void;
+    sessionDefaultThemeId: string | null;
+    setSessionDefaultThemeId: (themeId: string | null) => void;
+    resetToDefault: () => void;
+    isOverridden: boolean;
 }
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [currentTheme, setCurrentTheme] = useState<Theme>(themes[0]);
+    const [userThemeId, setUserThemeId] = useState<string | null>(null);
+    const [sessionDefaultThemeId, setSessionDefaultThemeId] = useState<string | null>(null);
 
     useEffect(() => {
         const savedThemeId = localStorage.getItem('retro_theme_id');
         if (savedThemeId) {
-            const foundTheme = themes.find(t => t.id === savedThemeId);
-            if (foundTheme) {
-                setCurrentTheme(foundTheme);
-            }
+            setUserThemeId(savedThemeId);
         }
     }, []);
 
     const setTheme = (themeId: string) => {
-        const theme = themes.find(t => t.id === themeId);
-        if (theme) {
-            setCurrentTheme(theme);
-            localStorage.setItem('retro_theme_id', themeId);
-        }
+        setUserThemeId(themeId);
+        localStorage.setItem('retro_theme_id', themeId);
+    };
+
+    const resetToDefault = () => {
+        setUserThemeId(null);
+        localStorage.removeItem('retro_theme_id');
+    };
+
+    // Calculate current theme based on priority: user override > session default > 'light'
+    const activeThemeId = userThemeId || sessionDefaultThemeId || 'light';
+    const currentTheme = themes.find(t => t.id === activeThemeId) || themes[0];
+
+    const contextValue = {
+        currentTheme,
+        setTheme,
+        sessionDefaultThemeId,
+        setSessionDefaultThemeId,
+        resetToDefault,
+        isOverridden: !!userThemeId
     };
 
     useEffect(() => {
@@ -44,8 +61,11 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             document.body.style.backgroundSize = 'cover';
             document.body.style.backgroundAttachment = 'fixed';
             document.body.style.backgroundPosition = 'center';
+            // Ensure the background color is also set, so it shows while image loads or if image has transparency
+            document.body.style.backgroundColor = currentTheme.colors.background;
         } else {
             document.body.style.backgroundImage = 'none';
+            document.body.style.backgroundColor = currentTheme.colors.background;
         }
 
         // Apply font family if present
@@ -72,7 +92,7 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
     }, [currentTheme]);
 
     return (
-        <ThemeContext.Provider value={{ currentTheme, setTheme }}>
+        <ThemeContext.Provider value={contextValue}>
             {children}
         </ThemeContext.Provider>
     );
