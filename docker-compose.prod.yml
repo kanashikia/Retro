@@ -20,6 +20,8 @@ services:
         reservations:
           cpus: '0.25'
           memory: 256M
+    ports:
+      - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data_prod:/var/lib/mysql
 
