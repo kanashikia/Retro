@@ -69,19 +69,19 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
   return (
     <div className="space-y-10 max-w-7xl mx-auto pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-surface p-6 rounded-2xl border border-border shadow-sm">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center"><Sparkles className="w-7 h-7 text-indigo-600" /></div>
+          <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center"><Sparkles className="w-7 h-7 text-primary" /></div>
           <div>
-            <h2 className="text-3xl font-black text-slate-900 leading-tight">Theme Grouping</h2>
-            <p className="text-base text-slate-600">The AI has organized your feedback. You can also manually add groups and move cards.</p>
+            <h2 className="text-3xl font-black text-text leading-tight">Theme Grouping</h2>
+            <p className="text-base text-text-muted">The AI has organized your feedback. You can also manually add groups and move cards.</p>
           </div>
         </div>
 
         {!isAddingTheme ? (
           <button
             onClick={() => setIsAddingTheme(true)}
-            className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md active:scale-95"
+            className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md active:scale-95"
           >
             <Plus className="w-5 h-5" />
             Add Group
@@ -94,27 +94,27 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
               onChange={(e) => setNewThemeName(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && addTheme()}
               placeholder="Group name..."
-              className="px-4 py-2 border-2 border-slate-100 rounded-xl focus:border-indigo-500 outline-none transition-all"
+              className="px-4 py-2 border-2 border-border rounded-xl focus:border-primary outline-none transition-all text-text bg-background"
             />
             <button onClick={addTheme} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"><Check className="w-5 h-5" /></button>
-            <button onClick={() => setIsAddingTheme(false)} className="p-2 bg-slate-200 text-slate-600 rounded-lg hover:bg-slate-300 transition-colors"><X className="w-5 h-5" /></button>
+            <button onClick={() => setIsAddingTheme(false)} className="p-2 bg-secondary text-text-muted rounded-lg hover:bg-border transition-colors"><X className="w-5 h-5" /></button>
           </div>
         )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {unassignedTickets.length > 0 && (
-          <div className="bg-slate-50 rounded-3xl border-2 border-dashed border-slate-200 p-8 space-y-6 min-h-[300px] flex flex-col"
+          <div className="bg-secondary/30 rounded-3xl border-2 border-dashed border-border p-8 space-y-6 min-h-[300px] flex flex-col"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { const tid = e.dataTransfer.getData("tid"); if (tid) moveTicket(tid, undefined); }}>
-            <div className="pb-4 border-b border-slate-200">
-              <h3 className="font-black text-2xl text-slate-400 capitalize">Unassigned Tickets</h3>
-              <p className="text-sm text-slate-400 font-medium">Drag cards here to ungroup them</p>
+            <div className="pb-4 border-b border-border">
+              <h3 className="font-black text-2xl text-text-muted capitalize">Unassigned Tickets</h3>
+              <p className="text-sm text-text-muted font-medium">Drag cards here to ungroup them</p>
             </div>
             <div className="flex flex-col gap-3 flex-1">
               {unassignedTickets.map(t => (
                 <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
-                  className={`bg-white p-4 rounded-xl border-2 text-sm md:text-base text-slate-800 cursor-grab active:cursor-grabbing hover:border-indigo-300 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
+                  className={`bg-surface p-4 rounded-xl border-2 text-sm md:text-base text-text cursor-grab active:cursor-grabbing hover:border-primary/50 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
                   <p>{t.text}</p>
                   {(t.reactions && Object.keys(t.reactions).length > 0) && (
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -139,11 +139,11 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
         )}
 
         {(session.themes || []).map(theme => (
-          <div key={theme.id} className="bg-white rounded-3xl border-2 border-slate-100 shadow-sm p-8 space-y-6 min-h-[300px] flex flex-col hover:border-indigo-100 transition-colors relative group"
+          <div key={theme.id} className="bg-surface rounded-3xl border-2 border-border shadow-sm p-8 space-y-6 min-h-[300px] flex flex-col hover:border-primary/20 transition-colors relative group"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => { const tid = e.dataTransfer.getData("tid"); if (tid) moveTicket(tid, theme.id); }}>
 
-            <div className="pb-4 border-b border-slate-100 space-y-2">
+            <div className="pb-4 border-b border-border space-y-2">
               <div className="flex items-center justify-between gap-2">
                 {editingThemeId === theme.id ? (
                   <div className="flex items-center gap-2 flex-1">
@@ -152,26 +152,26 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
                       value={editThemeName}
                       onChange={(e) => setEditThemeName(e.target.value)}
                       onKeyDown={(e) => e.key === 'Enter' && saveThemeName()}
-                      className="w-full text-xl font-black text-slate-900 bg-slate-50 rounded px-2 py-1 outline-none"
+                      className="w-full text-xl font-black text-text bg-background rounded px-2 py-1 outline-none"
                     />
                     <button onClick={saveThemeName} className="text-green-500 hover:text-green-600"><Check className="w-5 h-5" /></button>
                   </div>
                 ) : (
-                  <h3 className="font-black text-2xl text-slate-900 flex-1 truncate">{theme.name}</h3>
+                  <h3 className="font-black text-2xl text-text flex-1 truncate">{theme.name}</h3>
                 )}
 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => startEditing(theme)} className="p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-50 rounded-lg transition-all"><Edit2 className="w-4 h-4" /></button>
-                  <button onClick={() => deleteTheme(theme.id)} className="p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
+                  <button onClick={() => startEditing(theme)} className="p-1.5 text-text-muted hover:text-text hover:bg-secondary rounded-lg transition-all"><Edit2 className="w-4 h-4" /></button>
+                  <button onClick={() => deleteTheme(theme.id)} className="p-1.5 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed truncate">{theme.description}</p>
+              <p className="text-sm text-text-muted font-medium leading-relaxed truncate">{theme.description}</p>
             </div>
 
             <div className="flex flex-col gap-3 flex-1">
               {(session.tickets || []).filter(t => t.themeId === theme.id).map(t => (
                 <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
-                  className={`bg-slate-50 p-4 rounded-xl border-2 text-sm md:text-base text-slate-800 cursor-grab active:cursor-grabbing hover:bg-white hover:border-indigo-300 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
+                  className={`bg-ticket-bg p-4 rounded-xl border-2 text-sm md:text-base text-text cursor-grab active:cursor-grabbing hover:bg-surface hover:border-primary/50 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
                   <p>{t.text}</p>
                   {(t.reactions && Object.keys(t.reactions).length > 0) && (
                     <div className="mt-2 flex flex-wrap gap-1">
@@ -192,8 +192,8 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
                 </div>
               ))}
               {(session.tickets || []).filter(t => t.themeId === theme.id).length === 0 && (
-                <div className="flex-1 flex items-center justify-center border-2 border-dashed border-slate-100 rounded-2xl p-6">
-                  <span className="text-slate-300 font-bold uppercase tracking-widest text-xs">Drop a card here</span>
+                <div className="flex-1 flex items-center justify-center border-2 border-dashed border-border rounded-2xl p-6">
+                  <span className="text-text-muted/50 font-bold uppercase tracking-widest text-xs">Drop a card here</span>
                 </div>
               )}
             </div>

@@ -18,7 +18,7 @@ const ReactionPicker: React.FC<Props> = ({ onSelect }) => {
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                className="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded-lg transition-all"
+                className="p-1.5 text-text-muted hover:text-primary hover:bg-secondary rounded-lg transition-all"
                 title="Add reaction"
             >
                 <Smile className="w-4 h-4" />
@@ -30,7 +30,7 @@ const ReactionPicker: React.FC<Props> = ({ onSelect }) => {
                         className="fixed inset-0 z-10"
                         onClick={() => setIsOpen(false)}
                     />
-                    <div className="absolute bottom-full mb-2 left-0 z-20 bg-white border border-slate-200 p-2 rounded-xl shadow-xl flex gap-1 animate-in zoom-in-95 slide-in-from-bottom-2">
+                    <div className="absolute bottom-full mb-2 left-0 z-20 bg-surface border border-border p-2 rounded-xl shadow-xl flex gap-1 animate-in zoom-in-95 slide-in-from-bottom-2">
                         {COMMON_EMOJIS.map(emoji => (
                             <button
                                 key={emoji}
@@ -39,7 +39,7 @@ const ReactionPicker: React.FC<Props> = ({ onSelect }) => {
                                     onSelect(emoji);
                                     setIsOpen(false);
                                 }}
-                                className="p-1.5 hover:bg-slate-50 rounded-lg transition-transform hover:scale-125 text-lg leading-none"
+                                className="p-1.5 hover:bg-secondary rounded-lg transition-transform hover:scale-125 text-lg leading-none"
                             >
                                 {emoji}
                             </button>

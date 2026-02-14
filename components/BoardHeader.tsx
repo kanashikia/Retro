@@ -1,8 +1,10 @@
 
 import React from 'react';
-import { LayoutDashboard, Users, Sparkles, ChevronRight, Copy, LogOut, AlertCircle } from 'lucide-react';
+import { LayoutDashboard, Users, Sparkles, ChevronRight, Copy, LogOut, AlertCircle, Palette } from 'lucide-react';
 import { SessionState, User, RetroPhase } from '../types';
 import Timer from './Timer';
+import { useTheme } from '../context/ThemeContext';
+import { themes } from '../themes';
 
 interface Props {
   session: SessionState;
@@ -29,76 +31,97 @@ const getUserColor = (name: string) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
-const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLoading, error, onNextPhase, onReset }) => (
-  <header className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm">
-    <div className="flex items-center gap-5">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-inner"><LayoutDashboard className="text-white w-5 h-5" /></div>
-        <span className="font-black text-2xl text-slate-900 tracking-tight hidden sm:inline">Retro</span>
-      </div>
-      <div className="h-8 w-px bg-slate-200 hidden xs:block"></div>
+const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLoading, error, onNextPhase, onReset }) => {
+  const { currentTheme, setTheme } = useTheme();
 
-      <div className="flex items-center gap-3 md:gap-6">
-        <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50 rounded-full text-sm font-bold text-indigo-700 border border-indigo-100 shadow-sm">
-          <Users className="w-4 h-4" />
-          <span>{currentUser.name}</span>
-          {currentUser.isAdmin && <span className="bg-indigo-600 text-white text-[10px] uppercase px-1.5 py-0.5 rounded ml-1 font-black">Admin</span>}
+  return (
+    <header className="bg-surface/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm transition-colors duration-300">
+      <div className="flex items-center gap-5">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-inner transition-colors duration-300"><LayoutDashboard className="text-white w-5 h-5" /></div>
+          <span className="font-black text-2xl text-text tracking-tight hidden sm:inline transition-colors duration-300">Retro</span>
         </div>
+        <div className="h-8 w-px bg-border hidden xs:block transition-colors duration-300"></div>
 
-        {session.brainstormTimerEndsAt && (
-          <Timer endsAt={session.brainstormTimerEndsAt} />
-        )}
-
-        <div className="flex items-center">
-          <div className="flex -space-x-3 items-center">
-            {participants.filter(p => p.id !== currentUser.id).slice(0, 5).map(p => (
-              <div
-                key={p.id}
-                className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xs font-bold shadow-sm transition-transform hover:scale-110 hover:z-10 relative 
-                  ${p.isReady ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-white'} 
-                  ${getUserColor(p.name)}`}
-                title={`${p.name}${p.isReady ? ' (Ready)' : ''}`}
-              >
-                {p.name.charAt(0).toUpperCase()}
-                {p.isReady && (
-                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-white flex items-center justify-center">
-                    <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
-                  </div>
-                )}
-              </div>
-            ))}
-            {participants.length > 6 && (
-              <div className="w-10 h-10 rounded-full border-2 border-white bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-400 z-0 shadow-sm">
-                +{participants.length - 6}
-              </div>
-            )}
+        <div className="flex items-center gap-3 md:gap-6">
+          <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 rounded-full text-sm font-bold text-primary border border-border shadow-sm transition-colors duration-300">
+            <Users className="w-4 h-4" />
+            <span className="text-text">{currentUser.name}</span>
+            {currentUser.isAdmin && <span className="bg-primary text-white text-[10px] uppercase px-1.5 py-0.5 rounded ml-1 font-black">Admin</span>}
           </div>
-          <span className="ml-4 text-xs text-slate-400 font-semibold uppercase tracking-wider hidden sm:inline">
-            {participants.length === 1 ? 'Only you' : `${participants.length} online`}
-          </span>
+
+          {session.brainstormTimerEndsAt && (
+            <Timer endsAt={session.brainstormTimerEndsAt} />
+          )}
+
+          <div className="flex items-center">
+            <div className="flex -space-x-3 items-center">
+              {participants.filter(p => p.id !== currentUser.id).slice(0, 5).map(p => (
+                <div
+                  key={p.id}
+                  className={`w-10 h-10 rounded-full border-2 flex items-center justify-center text-xs font-bold shadow-sm transition-transform hover:scale-110 hover:z-10 relative 
+                  ${p.isReady ? 'border-emerald-500 ring-2 ring-emerald-200' : 'border-surface'} 
+                  ${getUserColor(p.name)}`}
+                  title={`${p.name}${p.isReady ? ' (Ready)' : ''}`}
+                >
+                  {p.name.charAt(0).toUpperCase()}
+                  {p.isReady && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-emerald-500 rounded-full border-2 border-surface flex items-center justify-center">
+                      <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                    </div>
+                  )}
+                </div>
+              ))}
+              {participants.length > 6 && (
+                <div className="w-10 h-10 rounded-full border-2 border-surface bg-secondary flex items-center justify-center text-xs font-bold text-text-muted z-0 shadow-sm">
+                  +{participants.length - 6}
+                </div>
+              )}
+            </div>
+            <span className="ml-4 text-xs text-text-muted font-semibold uppercase tracking-wider hidden sm:inline transition-colors duration-300">
+              {participants.length === 1 ? 'Only you' : `${participants.length} online`}
+            </span>
+          </div>
         </div>
       </div>
-    </div>
-    <div className="flex items-center gap-3">
-      {error && <div className="text-red-600 text-sm font-bold px-4 py-2 bg-red-50 rounded-lg flex items-center gap-2 animate-pulse"><AlertCircle className="w-4 h-4" /> {error}</div>}
-      {currentUser.isAdmin && (
-        <button onClick={onNextPhase} disabled={isLoading} className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl text-base font-bold transition-all shadow-md active:scale-95 disabled:opacity-50">
-          {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (session.phase === RetroPhase.BRAINSTORM ? <Sparkles className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />)}
-          {session.phase === RetroPhase.BRAINSTORM ? "Group with AI" : "Next"}
-        </button>
-      )}
-      <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("Link copied!"); }} className="p-2.5 hover:bg-slate-100 rounded-xl text-slate-700 transition-colors border border-transparent hover:border-slate-200" title="Copy share link"><Copy className="w-6 h-6" /></button>
-      <button onClick={() => {
-        if (currentUser.isAdmin) {
-          if (window.confirm("Do you want to close this session for everyone? This will save it to your history.")) {
+      <div className="flex items-center gap-3">
+        <div className="relative group">
+          <button className="p-2.5 hover:bg-secondary rounded-xl text-text-muted hover:text-text transition-colors border border-transparent hover:border-border" title="Change Theme">
+            <Palette className="w-6 h-6" />
+          </button>
+          <div className="absolute right-0 top-full mt-2 w-48 bg-surface border border-border rounded-xl shadow-xl overflow-hidden hidden group-hover:block z-50">
+            {themes.map(theme => (
+              <button
+                key={theme.id}
+                onClick={() => setTheme(theme.id)}
+                className={`w-full text-left px-4 py-3 text-sm font-medium hover:bg-secondary transition-colors flex items-center gap-2 ${currentTheme.id === theme.id ? 'text-primary bg-secondary/30' : 'text-text'}`}
+              >
+                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: theme.colors.primary }}></div>
+                {theme.name}
+              </button>
+            ))}
+          </div>
+        </div>
+        {error && <div className="text-red-600 text-sm font-bold px-4 py-2 bg-red-50 rounded-lg flex items-center gap-2 animate-pulse"><AlertCircle className="w-4 h-4" /> {error}</div>}
+        {currentUser.isAdmin && (
+          <button onClick={onNextPhase} disabled={isLoading} className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-xl text-base font-bold transition-all shadow-md active:scale-95 disabled:opacity-50">
+            {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (session.phase === RetroPhase.BRAINSTORM ? <Sparkles className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />)}
+            {session.phase === RetroPhase.BRAINSTORM ? "Group with AI" : "Next"}
+          </button>
+        )}
+        <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("Link copied!"); }} className="p-2.5 hover:bg-secondary rounded-xl text-text-muted hover:text-text transition-colors border border-transparent hover:border-border" title="Copy share link"><Copy className="w-6 h-6" /></button>
+        <button onClick={() => {
+          if (currentUser.isAdmin) {
+            if (window.confirm("Do you want to close this session for everyone? This will save it to your history.")) {
+              onReset();
+            }
+          } else {
             onReset();
           }
-        } else {
-          onReset();
-        }
-      }} className="p-2.5 hover:bg-red-50 rounded-xl text-red-600 transition-colors border border-transparent hover:border-red-100" title="Leave session"><LogOut className="w-6 h-6" /></button>
-    </div>
-  </header>
-);
+        }} className="p-2.5 hover:bg-red-50 rounded-xl text-red-600 transition-colors border border-transparent hover:border-red-100" title="Leave session"><LogOut className="w-6 h-6" /></button>
+      </div>
+    </header>
+  );
+};
 
 export default BoardHeader;

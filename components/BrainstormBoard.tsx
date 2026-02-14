@@ -65,7 +65,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
 
   return (
     <div className="flex flex-col gap-8 h-full">
-      <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-200 flex flex-wrap items-center justify-between gap-4">
+      <div className="bg-surface p-4 rounded-xl shadow-sm border border-border flex flex-wrap items-center justify-between gap-4">
         {currentUser.isAdmin ? (
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-6">
@@ -74,7 +74,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                 <select
                   value={session.brainstormTimerDuration || 10}
                   onChange={(e) => onUpdateSession({ ...session, brainstormTimerDuration: Number(e.target.value) })}
-                  className="px-3 py-1.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-medium outline-none focus:border-indigo-500"
+                  className="px-3 py-1.5 bg-background border border-border rounded-lg text-sm font-medium outline-none focus:border-primary text-text"
                 >
                   {[1, 2, 5, 10, 15, 20, 30].map(m => (
                     <option key={m} value={m}>{m} minutes</option>
@@ -95,7 +95,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                       const endsAt = Date.now() + duration * 60 * 1000;
                       onUpdateSession({ ...session, brainstormTimerEndsAt: endsAt });
                     }}
-                    className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
+                    className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
                   >
                     Start Timer
                   </button>
@@ -110,11 +110,11 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
               </div>
             </div>
 
-            <div className="flex items-center gap-6 bg-slate-50 px-5 py-3 rounded-2xl border border-slate-100 shadow-inner">
-              <div className="flex flex-col border-r border-slate-200 pr-6">
-                <span className="text-[10px] font-black uppercase text-slate-400 tracking-widest leading-none mb-1">Status</span>
-                <span className="text-lg font-black text-indigo-600 leading-none">{readyCount}<span className="text-slate-300 mx-1">/</span><span className="text-slate-400">{totalParticipants}</span></span>
-                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-tighter mt-1">Ready</span>
+            <div className="flex items-center gap-6 bg-background px-5 py-3 rounded-2xl border border-border shadow-inner">
+              <div className="flex flex-col border-r border-border pr-6">
+                <span className="text-[10px] font-black uppercase text-text-muted tracking-widest leading-none mb-1">Status</span>
+                <span className="text-lg font-black text-primary leading-none">{readyCount}<span className="text-border mx-1">/</span><span className="text-text-muted">{totalParticipants}</span></span>
+                <span className="text-[10px] font-bold text-text-muted uppercase tracking-tighter mt-1">Ready</span>
               </div>
               <div className="flex flex-wrap gap-2 max-w-[300px] lg:max-w-md">
                 {participants
@@ -127,7 +127,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                       className={`w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-black shadow-sm transition-all relative
                         ${p.isReady
                           ? 'bg-emerald-500 text-white border-emerald-200'
-                          : 'bg-white text-slate-400 border-slate-200'}`}
+                          : 'bg-surface text-text-muted border-border'}`}
                     >
                       {p.name[0].toUpperCase()}
                       {p.isReady && (
@@ -149,7 +149,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                   <Timer endsAt={session.brainstormTimerEndsAt} />
                 </div>
               ) : (
-                <span className="text-sm font-medium text-slate-400 italic">Collaborative brainstorming in progress...</span>
+                <span className="text-sm font-medium text-text-muted italic">Collaborative brainstorming in progress...</span>
               )}
             </div>
 
@@ -158,7 +158,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
               className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-base font-bold transition-all shadow-md active:scale-95
                 ${isReady
                   ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-500'
-                  : 'bg-indigo-600 hover:bg-indigo-700 text-white'}`}
+                  : 'bg-primary hover:bg-primary-hover text-white'}`}
             >
               {isReady ? (
                 <>
@@ -176,66 +176,66 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
         {Object.values(ColumnType).map((col) => (
           <div key={col} className="flex flex-col gap-6">
-            <div className={`flex items-center justify-between p-4 rounded-xl border-b-4 bg-white shadow-sm
+            <div className={`flex items-center justify-between p-4 rounded-xl border-b-4 bg-surface shadow-sm
             ${col === ColumnType.WELL ? 'border-emerald-500' :
                 col === ColumnType.LESS_WELL ? 'border-rose-500' :
                   col === ColumnType.PUZZLES ? 'border-sky-500' : 'border-amber-500'}`}>
-              <h3 className="font-black text-slate-800 text-sm uppercase tracking-widest">{col}</h3>
-              <button onClick={() => { setActiveCol(col); setText(""); setEditingTicketId(null); }} className="p-2 hover:bg-slate-50 rounded-lg transition-colors border border-transparent hover:border-slate-100">
-                <Plus className="w-5 h-5 text-slate-700" />
+              <h3 className="font-black text-text text-sm uppercase tracking-widest">{col}</h3>
+              <button onClick={() => { setActiveCol(col); setText(""); setEditingTicketId(null); }} className="p-2 hover:bg-secondary rounded-lg transition-colors border border-transparent hover:border-border">
+                <Plus className="w-5 h-5 text-text-muted" />
               </button>
             </div>
             <div className="flex flex-col gap-4 min-h-[150px]">
               {activeCol === col && !editingTicketId && (
-                <div className="bg-white p-5 rounded-2xl border-2 border-indigo-400 shadow-xl ring-4 ring-indigo-50 animate-in zoom-in-95">
+                <div className="bg-surface p-5 rounded-2xl border-2 border-primary/50 shadow-xl ring-4 ring-primary/20 animate-in zoom-in-95">
                   <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
                     autoFocus
-                    className="w-full min-h-[120px] text-lg outline-none resize-none placeholder:text-slate-400 bg-white text-slate-900"
+                    className="w-full min-h-[120px] text-lg outline-none resize-none placeholder:text-text-muted bg-surface text-text"
                     placeholder="Describe your idea here..."
                     onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); addTicket(col); } }}
                   />
                   <div className="flex justify-end gap-3 mt-3">
-                    <button onClick={() => setActiveCol(null)} className="px-4 py-2 text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors">Cancel</button>
-                    <button onClick={() => addTicket(col)} className="px-5 py-2 text-sm font-bold bg-indigo-600 text-white rounded-xl flex items-center gap-2 hover:bg-indigo-700 shadow-sm">Send <Send className="w-4 h-4" /></button>
+                    <button onClick={() => setActiveCol(null)} className="px-4 py-2 text-sm font-bold text-text-muted hover:text-text transition-colors">Cancel</button>
+                    <button onClick={() => addTicket(col)} className="px-5 py-2 text-sm font-bold bg-primary text-white rounded-xl flex items-center gap-2 hover:bg-primary-hover shadow-sm">Send <Send className="w-4 h-4" /></button>
                   </div>
                 </div>
               )}
               {(session.tickets || [])
                 .filter(t => t.column === col && canViewTicket(t))
                 .map(ticket => (
-                  <div key={ticket.id} className={`p-6 rounded-2xl border-2 bg-white group relative shadow-sm hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-2 ${getColumnColorClass(ticket.column)}`}>
+                  <div key={ticket.id} className={`p-6 rounded-2xl border-2 bg-ticket-bg group relative shadow-sm hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-2 ${getColumnColorClass(ticket.column)}`}>
                     {editingTicketId === ticket.id ? (
                       <div className="flex flex-col gap-3">
                         <textarea
                           value={text}
                           onChange={(e) => setText(e.target.value)}
                           autoFocus
-                          className="w-full min-h-[100px] text-base outline-none resize-none bg-slate-50 p-3 rounded-xl border border-indigo-200"
+                          className="w-full min-h-[100px] text-base outline-none resize-none bg-background p-3 rounded-xl border border-primary/30 text-text"
                           onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); updateTicket(ticket.id); } }}
                         />
                         <div className="flex justify-end gap-2">
-                          <button onClick={() => setEditingTicketId(null)} className="px-3 py-1 text-xs font-bold text-slate-500">Cancel</button>
-                          <button onClick={() => updateTicket(ticket.id)} className="px-3 py-1 text-xs font-bold bg-indigo-600 text-white rounded-lg">Save</button>
+                          <button onClick={() => setEditingTicketId(null)} className="px-3 py-1 text-xs font-bold text-text-muted">Cancel</button>
+                          <button onClick={() => updateTicket(ticket.id)} className="px-3 py-1 text-xs font-bold bg-primary text-white rounded-lg">Save</button>
                         </div>
                       </div>
                     ) : (
                       <>
-                        <p className="text-slate-800 text-base lg:text-lg leading-relaxed whitespace-pre-wrap">{ticket.text}</p>
+                        <p className="text-text text-base lg:text-lg leading-relaxed whitespace-pre-wrap">{ticket.text}</p>
 
                         <div className="mt-5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-slate-100 rounded-full flex items-center justify-center text-[10px] font-bold text-slate-600 uppercase">{ticket.author[0]}</div>
-                            <span className="text-xs font-bold text-slate-600">By {ticket.author}</span>
+                            <div className="w-6 h-6 bg-secondary rounded-full flex items-center justify-center text-[10px] font-bold text-text-muted uppercase">{ticket.author[0]}</div>
+                            <span className="text-xs font-bold text-text-muted">By {ticket.author}</span>
                           </div>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                             {(currentUser.isAdmin || String(ticket.authorId) === String(currentUser.id)) && (
                               <>
-                                <button onClick={() => startEditing(ticket)} className="p-2 text-slate-400 hover:text-indigo-600 transition-colors">
+                                <button onClick={() => startEditing(ticket)} className="p-2 text-text-muted hover:text-primary transition-colors">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                 </button>
-                                <button onClick={() => deleteTicket(ticket.id)} className="p-2 text-slate-400 hover:text-red-600 transition-colors">
+                                <button onClick={() => deleteTicket(ticket.id)} className="p-2 text-text-muted hover:text-red-600 transition-colors">
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </>

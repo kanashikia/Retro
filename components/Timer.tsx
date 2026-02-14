@@ -43,10 +43,10 @@ const Timer: React.FC<Props> = ({ endsAt }) => {
 
     return (
         <div className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-all shadow-sm ${isFinished
-            ? 'bg-red-50 text-red-700 border-red-200 animate-pulse'
+            ? 'bg-red-500/10 text-red-600 border-red-500/20 animate-pulse'
             : isUrgent
-                ? 'bg-amber-50 text-amber-700 border-amber-200 animate-bounce'
-                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                ? 'bg-amber-500/10 text-amber-600 border-amber-500/20 animate-bounce'
+                : 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20'
             }`}>
             {isFinished ? <AlertCircle className="w-4 h-4" /> : <TimerIcon className="w-4 h-4" />}
             <span className="font-mono text-lg">

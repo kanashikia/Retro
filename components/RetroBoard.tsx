@@ -178,15 +178,15 @@ const RetroBoard: React.FC = () => {
     };
 
     if (isJoining && !currentUser) return (
-        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4 text-slate-900">
-            <form onSubmit={(e) => { e.preventDefault(); const n = new FormData(e.currentTarget).get('userName'); if (n) { setCurrentUser({ id: uuidv4(), name: String(n), votesRemaining: 5 }); setIsJoining(false); } }} className="max-w-md w-full bg-white rounded-2xl shadow-xl p-10 space-y-8">
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 text-text transition-colors duration-300">
+            <form onSubmit={(e) => { e.preventDefault(); const n = new FormData(e.currentTarget).get('userName'); if (n) { setCurrentUser({ id: uuidv4(), name: String(n), votesRemaining: 5 }); setIsJoining(false); } }} className="max-w-md w-full bg-surface/90 backdrop-blur-sm rounded-2xl shadow-xl p-10 space-y-8 border border-border transition-colors duration-300">
                 <div className="text-center space-y-2">
                     <h2 className="text-3xl font-bold">Welcome!</h2>
-                    <p className="text-slate-600">Enter your name to join the session.</p>
+                    <p className="text-text-muted">Enter your name to join the session.</p>
                 </div>
                 <div className="space-y-4">
-                    <input name="userName" required autoFocus className="w-full px-5 py-4 border-2 border-slate-100 rounded-2xl focus:border-indigo-500 focus:ring-4 focus:ring-indigo-50 outline-none transition-all text-lg text-slate-900 bg-white" placeholder="Your name..." />
-                    <button type="submit" className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-5 rounded-2xl transition-all text-lg shadow-sm">
+                    <input name="userName" required autoFocus className="w-full px-5 py-4 border-2 border-border rounded-2xl focus:border-primary focus:ring-4 focus:ring-primary/20 outline-none transition-all text-lg text-text bg-surface" placeholder="Your name..." />
+                    <button type="submit" className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-5 rounded-2xl transition-all text-lg shadow-sm">
                         Join the Retro
                     </button>
                 </div>
@@ -195,9 +195,9 @@ const RetroBoard: React.FC = () => {
     );
 
     if (!session || !currentUser) return (
-        <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-4">
-            <div className="w-12 h-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-slate-600 font-medium">Loading session...</p>
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 transition-colors duration-300">
+            <div className="w-12 h-12 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <p className="mt-4 text-text-muted font-medium">Loading session...</p>
         </div>
     );
 
@@ -212,7 +212,7 @@ const RetroBoard: React.FC = () => {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
+        <div className="min-h-screen bg-background flex flex-col text-text transition-colors duration-300">
             <BoardHeader
                 session={session}
                 currentUser={userWithVotes!}

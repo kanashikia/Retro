@@ -90,23 +90,23 @@ const Home: React.FC = () => {
     if (!admin) return null;
 
     return (
-        <div className="min-h-screen bg-slate-50 flex flex-col text-slate-900">
-            <nav className="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between shadow-sm">
+        <div className="min-h-screen bg-background flex flex-col text-text transition-colors duration-300">
+            <nav className="bg-surface border-b border-border px-6 py-4 flex items-center justify-between shadow-sm">
                 <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-100">
+                    <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
                         <LayoutDashboard className="text-white w-6 h-6" />
                     </div>
                     <div className="flex flex-col">
-                        <span className="text-xl font-bold tracking-tight leading-none">Retro Dashboard</span>
-                        <span className="text-[10px] font-bold text-indigo-400 mt-1 uppercase tracking-widest">Version 1.0.3 - Responsive Sync Active</span>
+                        <span className="text-xl font-bold tracking-tight leading-none text-text">Retro Dashboard</span>
+                        <span className="text-[10px] font-bold text-primary mt-1 uppercase tracking-widest">Version 1.0.3 - Responsive Sync Active</span>
                     </div>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="text-right mr-2">
-                        <p className="text-sm font-bold">{admin.name}</p>
-                        <p className="text-xs text-slate-500 uppercase tracking-widest font-bold">Administrator</p>
+                        <p className="text-sm font-bold text-text">{admin.name}</p>
+                        <p className="text-xs text-text-muted uppercase tracking-widest font-bold">Administrator</p>
                     </div>
-                    <button onClick={handleLogout} className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
+                    <button onClick={handleLogout} className="p-2 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-xl transition-all">
                         <LogOut className="w-6 h-6" />
                     </button>
                 </div>
@@ -117,7 +117,7 @@ const Home: React.FC = () => {
                     {/* Create Session Card */}
                     <button
                         onClick={handleCreateSession}
-                        className="group relative bg-indigo-600 p-8 rounded-[32px] overflow-hidden transition-all hover:shadow-2xl hover:shadow-indigo-200 active:scale-[0.98] text-left shrink-0"
+                        className="group relative bg-primary p-8 rounded-[32px] overflow-hidden transition-all hover:shadow-2xl hover:shadow-primary/30 active:scale-[0.98] text-left shrink-0"
                     >
                         <div className="absolute top-[-10%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
                         <div className="relative z-10 space-y-6">
@@ -126,16 +126,16 @@ const Home: React.FC = () => {
                             </div>
                             <div className="space-y-2">
                                 <h2 className="text-3xl font-bold text-white">New Session</h2>
-                                <p className="text-indigo-100/80 leading-relaxed font-medium">Start a fresh, AI-powered retrospective session with your team right now.</p>
+                                <p className="text-white/80 leading-relaxed font-medium">Start a fresh, AI-powered retrospective session with your team right now.</p>
                             </div>
                         </div>
                     </button>
 
                     {/* Past Sessions */}
-                    <div className="bg-white p-8 rounded-[32px] border border-slate-200 shadow-sm space-y-6 flex flex-col h-[400px]">
+                    <div className="bg-surface p-8 rounded-[32px] border border-border shadow-sm space-y-6 flex flex-col h-[400px]">
                         <div className="flex items-center justify-between">
-                            <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center">
-                                <History className="text-slate-600 w-8 h-8" />
+                            <div className="w-14 h-14 bg-secondary rounded-2xl flex items-center justify-center">
+                                <History className="text-text-muted w-8 h-8" />
                             </div>
                         </div>
                         <div className="space-y-4 flex-1 overflow-hidden flex flex-col">
@@ -148,17 +148,17 @@ const Home: React.FC = () => {
                                         const updatedAt = session?.updatedAt ? new Date(session.updatedAt) : null;
 
                                         return (
-                                            <div key={sessionId || `history-${index}`} className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between hover:border-indigo-200 transition-colors group">
+                                            <div key={sessionId || `history-${index}`} className="p-4 bg-background rounded-2xl border border-border flex items-center justify-between hover:border-primary/30 transition-colors group">
                                                 <div className="space-y-1">
-                                                    <p className="font-bold text-slate-800">Session {label}</p>
-                                                    <p className="text-xs text-slate-500 font-medium">
+                                                    <p className="font-bold text-text">Session {label}</p>
+                                                    <p className="text-xs text-text-muted font-medium">
                                                         {updatedAt && !Number.isNaN(updatedAt.getTime())
                                                             ? `${updatedAt.toLocaleDateString()} at ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
                                                             : 'Date unavailable'}
                                                     </p>
                                                 </div>
                                                 {sessionId ? (
-                                                    <Link to={`/retro/${sessionId}`} className="px-4 py-2 bg-white text-indigo-600 border border-slate-200 rounded-xl text-sm font-bold hover:bg-indigo-600 hover:text-white hover:border-indigo-600 transition-all opacity-0 group-hover:opacity-100">
+                                                    <Link to={`/retro/${sessionId}`} className="px-4 py-2 bg-surface text-primary border border-border rounded-xl text-sm font-bold hover:bg-primary hover:text-white hover:border-primary transition-all opacity-0 group-hover:opacity-100">
                                                         View
                                                     </Link>
                                                 ) : null}
@@ -166,8 +166,8 @@ const Home: React.FC = () => {
                                         );
                                     })
                                 ) : (
-                                    <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
-                                        <span className="text-slate-400 font-medium italic">Your recent retrospectives will appear here.</span>
+                                    <div className="p-4 bg-background rounded-2xl border border-border flex items-center justify-between">
+                                        <span className="text-text-muted font-medium italic">Your recent retrospectives will appear here.</span>
                                     </div>
                                 )}
                             </div>
@@ -176,13 +176,13 @@ const Home: React.FC = () => {
                 </div>
 
                 {/* Tip Section */}
-                <div className="bg-indigo-50 p-6 rounded-[24px] border border-indigo-100 flex items-start gap-4">
-                    <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-sm shrink-0">
+                <div className="bg-primary/5 p-6 rounded-[24px] border border-primary/10 flex items-start gap-4">
+                    <div className="w-10 h-10 bg-surface rounded-xl flex items-center justify-center shadow-sm shrink-0">
                         <span className="text-xl">💡</span>
                     </div>
                     <div className="space-y-1">
-                        <h3 className="font-bold text-indigo-900">Pro Tip</h3>
-                        <p className="text-indigo-800/70 text-sm leading-relaxed">
+                        <h3 className="font-bold text-text">Pro Tip</h3>
+                        <p className="text-text-muted text-sm leading-relaxed">
                             Admins can control phases using the stepper at the top. Use AI grouping once your team has added enough cards to see semantic patterns!
                         </p>
                     </div>
