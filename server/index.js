@@ -251,7 +251,9 @@ if (!hasUsableGeminiKey) {
 }
 
 io.on('connection', (socket) => {
-    console.log('User connected:', socket.id);
+    const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
+    const ua = socket.handshake.headers['user-agent'];
+    console.log(`User connected: ${socket.id} | IP: ${ip} | UA: ${ua}`);
 
     socket.on('join-session', async ({ sessionId: rawSessionId, user, token }) => {
         if (!rawSessionId || !user) return;
