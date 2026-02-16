@@ -5,6 +5,7 @@ import { LayoutDashboard, LogIn, UserPlus, CheckCircle2 } from 'lucide-react';
 const Login: React.FC = () => {
     const [isRegistering, setIsRegistering] = useState(false);
     const [username, setUsername] = useState('');
+    const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
@@ -19,7 +20,11 @@ const Login: React.FC = () => {
             const response = await fetch(endpoint, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ username, password }),
+                body: JSON.stringify({
+                    username,
+                    password,
+                    ...(isRegistering && { email })
+                }),
             });
 
             const data = await response.json();
@@ -29,7 +34,7 @@ const Login: React.FC = () => {
             }
 
             if (isRegistering) {
-                setSuccess('Account created! Plase login.');
+                setSuccess('Account created! Please login.');
                 setIsRegistering(false);
             } else {
                 localStorage.setItem('retro_token', data.token);
@@ -87,6 +92,20 @@ const Login: React.FC = () => {
                             />
                         </div>
 
+                        {isRegistering && (
+                            <div className="space-y-1">
+                                <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">Email</label>
+                                <input
+                                    type="email"
+                                    value={email}
+                                    onChange={(e) => setEmail(e.target.value)}
+                                    required
+                                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white placeholder-slate-600 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 outline-none transition-all"
+                                    placeholder="your@email.com"
+                                />
+                            </div>
+                        )}
+
                         <div className="space-y-1">
                             <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider ml-1">Password</label>
                             <input
@@ -98,6 +117,14 @@ const Login: React.FC = () => {
                                 placeholder="••••••••"
                             />
                         </div>
+
+                        {!isRegistering && (
+                            <div className="flex justify-end">
+                                <a href="/forgot-password" className="text-indigo-400 hover:text-indigo-300 text-xs font-medium transition-colors">
+                                    Forgot Password?
+                                </a>
+                            </div>
+                        )}
 
                         <button
                             type="submit"

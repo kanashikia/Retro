@@ -58,6 +58,14 @@ services:
       - DB_NAME=${DB_NAME:-retro}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
+      - SMTP_HOST=${SMTP_HOST}
+      - SMTP_PORT=${SMTP_PORT}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASS=${SMTP_PASS}
+      - SMTP_SECURE=${SMTP_SECURE}
+      - SMTP_FROM=${SMTP_FROM}
+      - CLIENT_URL=${CLIENT_URL}
+      - CORS_ORIGINS=${CORS_ORIGINS}
 
 volumes:
   mysql_data_prod:

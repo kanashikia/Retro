@@ -8,10 +8,30 @@ const User = sequelize.define('User', {
         allowNull: false,
         unique: true,
     },
+    email: {
+        type: DataTypes.STRING,
+        allowNull: true, // Initially true to allow existing users without email
+        unique: true,
+        validate: {
+            isEmail: true
+        }
+    },
     password: {
         type: DataTypes.STRING,
         allowNull: false,
     },
+    resetPasswordToken: {
+        type: DataTypes.STRING,
+        allowNull: true,
+    },
+    resetPasswordExpires: {
+        type: DataTypes.DATE,
+        allowNull: true,
+    },
+    tokenVersion: {
+        type: DataTypes.INTEGER,
+        defaultValue: 0,
+    }
 }, {
     timestamps: true,
     hooks: {
