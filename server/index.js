@@ -14,6 +14,8 @@ dotenv.config();
 
 // Connect to SQL Database
 connectDB();
+import { startCleanupJob } from './services/cleanupService.js';
+startCleanupJob();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
