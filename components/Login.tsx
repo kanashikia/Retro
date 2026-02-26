@@ -27,7 +27,16 @@ const Login: React.FC = () => {
                 }),
             });
 
-            const data = await response.json();
+            // Handle non-JSON responses or empty responses (e.g. server down)
+            const contentType = response.headers.get("content-type");
+            let data: any = {};
+
+            if (contentType && contentType.includes("application/json")) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                throw new Error(text || `Server returned ${response.status} ${response.statusText}`);
+            }
 
             if (!response.ok) {
                 throw new Error(data.message || 'Something went wrong');

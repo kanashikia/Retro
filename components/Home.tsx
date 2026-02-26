@@ -29,8 +29,13 @@ const Home: React.FC = () => {
                 },
             });
             if (response.ok) {
-                const data = await response.json();
-                setHistory(data);
+                const contentType = response.headers.get("content-type");
+                if (contentType && contentType.includes("application/json")) {
+                    const data = await response.json();
+                    setHistory(data);
+                } else {
+                    console.error("Non-JSON response for history:", await response.text());
+                }
             } else if (response.status === 401) {
                 handleLogout();
             }
@@ -71,10 +76,17 @@ const Home: React.FC = () => {
             });
             if (response.ok) {
                 navigate(`/retro/${newId}`);
-            } else if (response.status === 401) {
-                handleLogout();
             } else {
-                console.error("Failed to pre-create session");
+                const contentType = response.headers.get("content-type");
+                const errorText = contentType && contentType.includes("application/json")
+                    ? (await response.json()).message
+                    : await response.text();
+
+                if (response.status === 401) {
+                    handleLogout();
+                } else {
+                    console.error("Failed to pre-create session:", errorText);
+                }
             }
         } catch (error) {
             console.error("Error creating session:", error);

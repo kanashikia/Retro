@@ -55,7 +55,6 @@ const RetroBoard: React.FC = () => {
             // No console.log to avoid spam
             setSession(prev => {
                 if (!prev || JSON.stringify(prev) !== JSON.stringify(updatedSession)) {
-                    setSessionDefaultThemeId(updatedSession.defaultThemeId || 'light');
                     return updatedSession;
                 }
                 return prev;
@@ -78,6 +77,13 @@ const RetroBoard: React.FC = () => {
             socket.off('participants-updated');
         };
     }, [sessionId, navigate]);
+
+    // Sync session default theme with ThemeContext
+    useEffect(() => {
+        if (session?.defaultThemeId) {
+            setSessionDefaultThemeId(session.defaultThemeId);
+        }
+    }, [session?.defaultThemeId, setSessionDefaultThemeId]);
 
     useEffect(() => {
         if (!currentUser || !sessionId) return;

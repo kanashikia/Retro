@@ -544,8 +544,11 @@ ${JSON.stringify(ticketAliasData)}
 
             const rawText = response?.text ?? response?.response?.text?.();
             if (!rawText) {
+                console.error('[AI] Empty response from Gemini.');
                 return callback({ error: 'AI Error: Empty response from Gemini.' });
             }
+
+            console.log('[AI] Raw Response Length:', rawText.length);
 
             const normalizeJsonText = (text) => {
                 const trimmed = String(text).trim();
@@ -568,7 +571,13 @@ ${JSON.stringify(ticketAliasData)}
                 return withoutFence;
             };
 
-            const result = JSON.parse(normalizeJsonText(rawText));
+            let result;
+            try {
+                result = JSON.parse(normalizeJsonText(rawText));
+            } catch (e) {
+                console.error('[AI] JSON Parse Error:', e.message, 'Raw Text snippet:', rawText.slice(0, 200));
+                return callback({ error: 'AI Error: Invalid JSON response.' });
+            }
 
             const rawThemes = Array.isArray(result?.themes) ? result.themes : [];
             const rawAssignments = Array.isArray(result?.assignments) ? result.assignments : [];
@@ -588,15 +597,27 @@ ${JSON.stringify(ticketAliasData)}
                 const canonicalId = `theme_${index + 1}`;
                 rawThemeToCanonical.set(normalizeKey(theme?.id), canonicalId);
                 rawThemeToCanonical.set(normalizeKey(theme?.name), canonicalId);
+                // Handle various ID formats Gemini might use
+                rawThemeToCanonical.set(String(index + 1), canonicalId);
+                rawThemeToCanonical.set(`theme${index + 1}`, canonicalId);
+                rawThemeToCanonical.set(`t${index + 1}`, canonicalId);
+                rawThemeToCanonical.set(`group${index + 1}`, canonicalId);
             });
 
             const normalizeTicketId = (rawTicketId) => {
                 const ticketKey = String(rawTicketId ?? '').trim();
                 if (!ticketKey) return null;
+
+                // Direct match with alias or real ID
                 if (aliasToRealTicketId.has(ticketKey)) return aliasToRealTicketId.get(ticketKey);
                 if (realTicketIds.has(ticketKey)) return ticketKey;
 
-                const indexMatch = ticketKey.match(/^t?(\d+)$/i);
+                // Case-insensitive alias match (T1, t1, T-1, etc)
+                const normalizedKey = ticketKey.toUpperCase().replace(/[^A-Z0-9]/g, '');
+                if (aliasToRealTicketId.has(normalizedKey)) return aliasToRealTicketId.get(normalizedKey);
+
+                // Index-based extraction (looks for the numeric part in "T1", "Ticket 1", "1", etc)
+                const indexMatch = ticketKey.match(/(\d+)/);
                 if (indexMatch) {
                     const idx = Number(indexMatch[1]) - 1;
                     if (idx >= 0 && idx < ticketAliasData.length) {
@@ -618,6 +639,8 @@ ${JSON.stringify(ticketAliasData)}
             const assignedTicketIds = new Set(normalizedAssignments.map((a) => a.ticketId));
             const needsHeuristicFallback =
                 normalizedThemes.length > 1 && assignedTicketIds.size < ticketAliasData.length;
+
+            console.log(`[AI] Grouping Stats: Themes=${normalizedThemes.length}, Assignments=${normalizedAssignments.length}/${ticketAliasData.length}, HeuristicFallback=${needsHeuristicFallback}`);
 
             if (needsHeuristicFallback) {
                 const tokenize = (value) =>

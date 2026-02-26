@@ -33,7 +33,7 @@ const getUserColor = (name: string) => {
 };
 
 const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLoading, error, onNextPhase, onReset, onUpdateSession }) => {
-  const { currentTheme, setTheme } = useTheme();
+  const { currentTheme, setTheme, isOverridden, resetToDefault, sessionDefaultThemeId } = useTheme();
 
   const [isThemeOpen, setIsThemeOpen] = React.useState(false);
   const themeDropdownRef = React.useRef<HTMLDivElement>(null);
@@ -148,10 +148,10 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
                 ))}
               </div>
               {/* Show reset option if user has overridden the default */}
-              {useTheme().isOverridden && (
+              {isOverridden && (
                 <div className="border-t border-border p-2">
                   <button
-                    onClick={useTheme().resetToDefault}
+                    onClick={resetToDefault}
                     className="w-full text-left px-2 py-1 text-xs text-text-muted hover:text-text transition-colors flex items-center gap-2"
                   >
                     <span className="w-3 h-3 flex items-center justify-center">↺</span>
@@ -161,7 +161,7 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
               )}
               <div className="border-t border-border p-2 bg-secondary/10">
                 <div className="text-[10px] text-text-muted text-center">
-                  Session Default: {themes.find(t => t.id === useTheme().sessionDefaultThemeId)?.name || 'Default Light'}
+                  Session Default: {themes.find(t => t.id === sessionDefaultThemeId)?.name || 'Default Light'}
                 </div>
               </div>
             </div>

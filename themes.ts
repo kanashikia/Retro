@@ -123,4 +123,190 @@ export const themes: Theme[] = [
             ticketBackground: '#000040',
         },
     },
+    {
+        id: 'neo-brutalism',
+        name: 'Neo Brutalism',
+        fontFamily: '"Public Sans", "Inter", sans-serif',
+        customCss: `
+            /* Neobrutalist Theme - Scoped Styling */
+            
+            [data-theme="neo-brutalism"] .bg-surface, 
+            [data-theme="neo-brutalism"] .bg-ticket-bg, 
+            [data-theme="neo-brutalism"] .bg-secondary, 
+            [data-theme="neo-brutalism"] .card, 
+            [data-theme="neo-brutalism"] [class*="rounded-"], 
+            [data-theme="neo-brutalism"] button {
+                border: 2px solid #000;
+                box-shadow: 4px 4px 0px 0px #000;
+                border-radius: 4px;
+            }
+            
+            [data-theme="neo-brutalism"] h1, 
+            [data-theme="neo-brutalism"] h2, 
+            [data-theme="neo-brutalism"] h3, 
+            [data-theme="neo-brutalism"] .font-bold, 
+            [data-theme="neo-brutalism"] .font-black {
+                color: #000;
+                text-transform: uppercase;
+                letter-spacing: 0.02em;
+            }
+            
+            [data-theme="neo-brutalism"] p, 
+            [data-theme="neo-brutalism"] span, 
+            [data-theme="neo-brutalism"] div:not([class*="bg-"]) {
+                color: var(--color-text);
+            }
+
+            [data-theme="neo-brutalism"] .text-text-muted {
+                color: #000;
+                opacity: 0.8;
+                font-weight: 500;
+            }
+            
+            [data-theme="neo-brutalism"] button {
+                box-shadow: 2px 2px 0px 0px #000;
+                transform: translate(0, 0);
+                transition: all 0.1s ease;
+                font-weight: 800;
+                text-transform: uppercase;
+                background-color: var(--color-primary);
+                color: #000;
+                border: 2px solid #000;
+            }
+            
+            [data-theme="neo-brutalism"] button:active {
+                box-shadow: 0px 0px 0px 0px #000;
+                transform: translate(2px, 2px);
+            }
+            
+            [data-theme="neo-brutalism"] input, 
+            [data-theme="neo-brutalism"] select, 
+            [data-theme="neo-brutalism"] textarea {
+                border: 2px solid #000;
+                border-radius: 2px;
+                box-shadow: 2px 2px 0px 0px #000;
+                background-color: #fff;
+                color: #000;
+                padding: 8px 12px;
+            }
+            
+            [data-theme="neo-brutalism"] .border-b-4, 
+            [data-theme="neo-brutalism"] .border-2, 
+            [data-theme="neo-brutalism"] .border {
+                border-color: #000;
+                border-width: 2px;
+            }
+
+            /* Restore Column Color Context with Pseudo-elements */
+            [data-theme="neo-brutalism"] .border-emerald-500, 
+            [data-theme="neo-brutalism"] .border-rose-500, 
+            [data-theme="neo-brutalism"] .border-sky-500, 
+            [data-theme="neo-brutalism"] .border-amber-500 {
+                position: relative;
+                overflow: hidden;
+            }
+            
+            [data-theme="neo-brutalism"] .border-emerald-500::before, 
+            [data-theme="neo-brutalism"] .border-rose-500::before, 
+            [data-theme="neo-brutalism"] .border-sky-500::before, 
+            [data-theme="neo-brutalism"] .border-amber-500::before {
+                content: "";
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                height: 8px;
+                z-index: 10;
+            }
+
+            [data-theme="neo-brutalism"] .border-emerald-500::before { background-color: #10b981; }
+            [data-theme="neo-brutalism"] .border-rose-500::before { background-color: #f43f5e; }
+            [data-theme="neo-brutalism"] .border-sky-500::before { background-color: #0ea5e9; }
+            [data-theme="neo-brutalism"] .border-amber-500::before { background-color: #f59e0b; }
+
+            /* PhaseStepper Fixes */
+            [data-theme="neo-brutalism"] nav.bg-surface\\/80 {
+                background-color: var(--color-surface);
+                backdrop-filter: none;
+                border-bottom: 2px solid #000;
+            }
+
+            [data-theme="neo-brutalism"] nav.bg-surface\\/80 button {
+                padding-left: 20px;
+                padding-right: 20px;
+                margin: 0 -10px; /* Offset some of the padding for the active line */
+            }
+
+            [data-theme="neo-brutalism"] .bg-primary\\/10 {
+                background-color: var(--color-primary);
+                color: #000;
+                border: 2px solid #000;
+            }
+
+            [data-theme="neo-brutalism"] .bg-secondary\\/50 {
+                background-color: var(--color-secondary);
+                color: #000;
+                border: 2px solid #000;
+            }
+
+            [data-theme="neo-brutalism"] .text-primary {
+                color: #000;
+                text-decoration: underline;
+                text-decoration-thickness: 2px;
+            }
+            
+            [data-theme="neo-brutalism"] .bg-emerald-100, 
+            [data-theme="neo-brutalism"] .bg-emerald-50, 
+            [data-theme="neo-brutalism"] .bg-rose-50, 
+            [data-theme="neo-brutalism"] .bg-sky-50, 
+            [data-theme="neo-brutalism"] .bg-amber-50 {
+                border: 2px solid #000;
+            }
+            
+            [data-theme="neo-brutalism"] main {
+                padding: 0 16px;
+            }
+
+            [data-theme="neo-brutalism"] .shadow-sm, 
+            [data-theme="neo-brutalism"] .shadow-md, 
+            [data-theme="neo-brutalism"] .shadow-xl {
+                box-shadow: 4px 4px 0px 0px #000;
+            }
+
+            /* Responsive Mobile Adjustments */
+            @media (max-width: 768px) {
+                [data-theme="neo-brutalism"] .bg-surface, 
+                [data-theme="neo-brutalism"] .bg-ticket-bg, 
+                [data-theme="neo-brutalism"] .bg-secondary, 
+                [data-theme="neo-brutalism"] .card, 
+                [data-theme="neo-brutalism"] [class*="rounded-"], 
+                [data-theme="neo-brutalism"] button {
+                    box-shadow: 2px 2px 0px 0px #000;
+                }
+                [data-theme="neo-brutalism"] button:active {
+                    transform: translate(1px, 1px);
+                    box-shadow: 0px 0px 0px 0px #000;
+                }
+                [data-theme="neo-brutalism"] .shadow-sm, 
+                [data-theme="neo-brutalism"] .shadow-md, 
+                [data-theme="neo-brutalism"] .shadow-xl {
+                    box-shadow: 2px 2px 0px 0px #000;
+                }
+                [data-theme="neo-brutalism"] main {
+                    padding: 0 8px;
+                }
+            }
+        `,
+        colors: {
+            background: '#f9df6d', // Bright yellow
+            surface: '#ffffff',
+            primary: '#00e1ff', // Cyan
+            primaryHover: '#00cce6',
+            secondary: '#ff90e8', // Pink
+            text: '#000000',
+            textMuted: '#000000',
+            border: '#000000',
+            ticketBackground: '#ffffff',
+        },
+    },
 ];

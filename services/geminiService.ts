@@ -57,6 +57,8 @@ export const groupTicketsWithAI = async (socket: Socket, sessionId: string, tick
           }
         });
 
+        console.log(`[AI-Client] Grouping complete. Received ${formattedThemes.length} themes and ${Object.keys(ticketAssignments).length}/${tickets.length} specific assignments.`);
+
         resolve({
           themes: formattedThemes,
           ticketAssignments

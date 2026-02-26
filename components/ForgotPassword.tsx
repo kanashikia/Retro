@@ -21,7 +21,17 @@ const ForgotPassword: React.FC = () => {
                 body: JSON.stringify({ email }),
             });
 
-            const data = await response.json();
+            const contentType = response.headers.get("content-type");
+            let data: any = {};
+            if (contentType && contentType.includes("application/json")) {
+                data = await response.json();
+            } else {
+                const text = await response.text();
+                if (!response.ok) {
+                    throw new Error(text || `Server returned ${response.status}`);
+                }
+                data = { message: text };
+            }
 
             if (!response.ok) {
                 // Determine if 429 (Too Many Requests)

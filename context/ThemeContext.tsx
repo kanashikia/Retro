@@ -55,6 +55,9 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
             root.style.setProperty(`--color-${key}`, value);
         });
 
+        // Add theme ID as data attribute for higher specificity styling without !important
+        root.setAttribute('data-theme', currentTheme.id);
+
         // Apply background image if present
         if (currentTheme.backgroundImage) {
             document.body.style.backgroundImage = `url('${currentTheme.backgroundImage}')`;
