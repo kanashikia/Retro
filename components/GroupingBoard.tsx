@@ -115,7 +115,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
               {unassignedTickets.map(t => (
                 <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
                   className={`bg-surface p-4 rounded-xl border-2 text-sm md:text-base text-text cursor-grab active:cursor-grabbing hover:border-primary/50 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
-                  <p>{t.text}</p>
+                  <p className="break-words min-w-0">{t.text}</p>
                   {(t.reactions && Object.keys(t.reactions).length > 0) && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {Object.entries(t.reactions).map(([emoji, userIds]) => (
@@ -172,7 +172,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
               {(session.tickets || []).filter(t => t.themeId === theme.id).map(t => (
                 <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
                   className={`bg-ticket-bg p-4 rounded-xl border-2 text-sm md:text-base text-text cursor-grab active:cursor-grabbing hover:bg-surface hover:border-primary/50 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
-                  <p>{t.text}</p>
+                  <p className="break-words min-w-0">{t.text}</p>
                   {(t.reactions && Object.keys(t.reactions).length > 0) && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {Object.entries(t.reactions).map(([emoji, userIds]) => (

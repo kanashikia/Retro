@@ -65,7 +65,7 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, o
             <div className="flex-1 bg-background/50 rounded-2xl p-4 space-y-3 max-h-[300px] overflow-y-auto no-scrollbar border border-border/50">
               {(session.tickets || []).filter(t => t.themeId === theme.id).map(t => (
                 <div key={t.id} className={`bg-surface p-4 rounded-xl border-2 text-sm md:text-base text-text shadow-sm leading-relaxed ${getColumnColorClass(t.column)}`}>
-                  <p>{t.text}</p>
+                  <p className="break-words min-w-0">{t.text}</p>
                   {(t.reactions && Object.keys(t.reactions).length > 0) && (
                     <div className="mt-2 flex flex-wrap gap-1">
                       {Object.entries(t.reactions).map(([emoji, userIds]) => (

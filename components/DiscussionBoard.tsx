@@ -54,7 +54,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
   );
 
   return (
-    <div className="max-w-5xl mx-auto h-full flex flex-col gap-10 py-6">
+    <div className="max-w-7xl mx-auto h-full flex flex-col gap-6 py-6">
       <div className="text-center space-y-6 animate-in fade-in slide-in-from-top-6">
         <div className="flex items-center justify-center gap-4">
           <div className="inline-flex items-center px-4 py-2 bg-primary/10 text-primary text-sm font-black rounded-xl uppercase tracking-widest border border-primary/20">
@@ -64,70 +64,72 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
             <Vote className="w-4 h-4" /> {currentTheme.votes} Votes
           </div>
         </div>
-        <h2 className="text-6xl font-black text-text tracking-tight leading-none">{currentTheme.name}</h2>
-        <p className="text-2xl text-text-muted max-w-3xl mx-auto leading-relaxed">{currentTheme.description}</p>
+        <h2 className="text-4xl font-black text-text tracking-tight leading-none">{currentTheme.name}</h2>
+        <p className="text-lg text-text-muted max-w-3xl mx-auto leading-relaxed">{currentTheme.description}</p>
       </div>
 
-      <div className="space-y-6">
-        <h3 className="text-xs font-black text-text-muted uppercase tracking-[0.2em] text-center mb-4">Cards linked to this theme</h3>
-        {(session.tickets || [])
-          .filter(t => t.themeId === currentTheme.id)
-          .map(t => (
-            <div key={t.id} className={`bg-surface p-8 rounded-[2.5rem] border-2 shadow-sm flex items-start gap-8 hover:border-primary/30 transition-all group ${getColumnColorClass(t.column)}`}>
-              <div className="w-12 h-12 bg-secondary rounded-2xl flex items-center justify-center shrink-0 border border-border group-hover:bg-primary/10 group-hover:border-primary/20 transition-colors">
-                <span className="text-lg font-black text-border group-hover:text-primary leading-none">#</span>
-              </div>
-              <div className="flex-1 space-y-3 pt-1">
-                <p className="text-text text-xl md:text-2xl font-semibold leading-relaxed">{t.text}</p>
+      <div className="space-y-4">
+        <h3 className="text-xs font-black text-text-muted uppercase tracking-[0.2em] text-center mb-2">Cards linked to this theme</h3>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
+          {(session.tickets || [])
+            .filter(t => t.themeId === currentTheme.id)
+            .map(t => (
+              <div key={t.id} className={`bg-surface p-4 rounded-2xl border-2 shadow-sm flex items-start gap-4 hover:border-primary/30 transition-all group ${getColumnColorClass(t.column)}`}>
+                <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center shrink-0 border border-border group-hover:bg-primary/10 group-hover:border-primary/20 transition-colors">
+                  <span className="text-sm font-black text-border group-hover:text-primary leading-none">#</span>
+                </div>
+                <div className="flex-1 min-w-0 space-y-3 pt-1">
+                  <p className="text-text text-sm md:text-base font-semibold leading-relaxed break-words">{t.text}</p>
 
-                {(t.reactions && Object.keys(t.reactions).length > 0) && (
-                  <div className="mt-4 flex flex-wrap gap-2">
-                    {Object.entries(t.reactions).map(([emoji, userIds]) => (
-                      <ReactionBadge
-                        key={emoji}
-                        emoji={emoji}
-                        userIds={userIds}
-                        currentUserId={currentUser.id}
-                        onToggle={(e) => onToggleReaction(t.id, e)}
-                      />
-                    ))}
-                  </div>
-                )}
+                  {(t.reactions && Object.keys(t.reactions).length > 0) && (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      {Object.entries(t.reactions).map(([emoji, userIds]) => (
+                        <ReactionBadge
+                          key={emoji}
+                          emoji={emoji}
+                          userIds={userIds}
+                          currentUserId={currentUser.id}
+                          onToggle={(e) => onToggleReaction(t.id, e)}
+                        />
+                      ))}
+                    </div>
+                  )}
 
-                <div className="flex items-center gap-4 mt-4">
-                  <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-md text-xs font-black uppercase tracking-widest border ${getColumnSecondaryColorClass(t.column)}`}>
-                      {t.column}
-                    </span>
-                    <span className="text-sm text-text-muted font-bold uppercase tracking-tighter">
-                      • Shared by <span className="text-text">{t.author}</span>
-                    </span>
+                  <div className="flex items-center gap-4 mt-4">
+                    <div className="flex items-center gap-2">
+                      <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-[0.1em] border ${getColumnSecondaryColorClass(t.column)}`}>
+                        {t.column}
+                      </span>
+                      <span className="text-[10px] text-text-muted font-bold uppercase tracking-tight">
+                        • Shared by <span className="text-text">{t.author}</span>
+                      </span>
+                    </div>
+                    <ReactionPicker onSelect={(emoji) => onToggleReaction(t.id, emoji)} />
                   </div>
-                  <ReactionPicker onSelect={(emoji) => onToggleReaction(t.id, emoji)} />
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+        </div>
       </div>
 
       {currentUser.isAdmin && (
-        <div className="flex items-center justify-center gap-8 py-4 border-y border-border bg-surface/50 rounded-[2.5rem]">
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 py-4 border-y border-border bg-surface/50 rounded-2xl md:rounded-[2.5rem]">
           <button
             disabled={session.currentThemeIndex === 0}
             onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex - 1 })}
-            className="flex items-center gap-3 px-8 py-4 bg-surface border-2 border-border rounded-2xl font-black text-text hover:bg-secondary transition-all disabled:opacity-30 shadow-sm active:scale-95 text-sm"
+            className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-surface border-2 border-border rounded-xl md:rounded-2xl font-black text-text hover:bg-secondary transition-all disabled:opacity-30 shadow-sm active:scale-95 text-xs md:text-sm"
           >
-            <ChevronLeft className="w-5 h-5" /> Previous
+            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" /> Previous
           </button>
-          <div className="text-xs font-black text-text-muted uppercase tracking-widest min-w-[100px] text-center">
+          <div className="text-[10px] md:text-xs font-black text-text-muted uppercase tracking-widest min-w-[80px] md:min-w-[100px] text-center">
             {session.currentThemeIndex + 1} / {(session.themes || []).length}
           </div>
           <button
             disabled={session.currentThemeIndex === (session.themes || []).length - 1}
             onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex + 1 })}
-            className="flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-black hover:bg-primary-hover transition-all disabled:opacity-30 shadow-xl shadow-primary/20 active:scale-95 text-sm"
+            className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-primary text-white rounded-xl md:rounded-2xl font-black hover:bg-primary-hover transition-all disabled:opacity-30 shadow-xl shadow-primary/20 active:scale-95 text-xs md:text-sm"
           >
-            Next Topic <ChevronRight className="w-5 h-5" />
+            Next Topic <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
           </button>
         </div>
       )}
@@ -151,13 +153,13 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
         <div className="lg:col-span-2 space-y-4">
           {(session.actions || []).length > 0 ? (
             (session.actions || []).map((action) => (
-              <div key={action.id} className="bg-surface p-6 rounded-3xl border border-border flex items-center justify-between hover:border-primary/30 transition-all group shadow-sm bg-gradient-to-r from-surface to-background/50">
+              <div key={action.id} className="bg-surface p-4 rounded-2xl border border-border flex items-center justify-between hover:border-primary/30 transition-all group shadow-sm bg-gradient-to-r from-surface to-background/50">
                 <div className="flex items-start gap-5">
                   <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 shrink-0">
                     <CheckCircle2 className="w-5 h-5 text-primary" />
                   </div>
                   <div className="space-y-1">
-                    <p className="font-bold text-text text-lg leading-tight">{action.text}</p>
+                    <p className="font-bold text-text text-base leading-tight">{action.text}</p>
                     <div className="flex items-center gap-2">
                       <span className="text-xs font-black text-text-muted uppercase tracking-[0.1em]">Assigned to:</span>
                       <span className="px-2 py-0.5 bg-secondary text-text text-[11px] font-black rounded-md uppercase tracking-wider">{action.assigneeName}</span>
