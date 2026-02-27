@@ -15,15 +15,33 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '0.50'
-          memory: 512M
+          cpus: '1.0'
+          memory: 1G
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.5'
+          memory: 512M
     ports:
       - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data_prod:/var/lib/mysql
+
+  redis:
+    image: redis:7-alpine
+    container_name: retro-redis-prod
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 256M
+        reservations:
+          cpus: '0.10'
+          memory: 128M
 
   app:
     build: 
@@ -34,16 +52,18 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     ports:
       - "3002:3001"
     deploy:
       resources:
         limits:
-          cpus: '0.50'
-          memory: 512M
+          cpus: '1.5'
+          memory: 1536M
         reservations:
-          cpus: '0.25'
-          memory: 256M
+          cpus: '0.75'
+          memory: 768M
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3001/ping || exit 1"]
       interval: 10s
@@ -58,6 +78,7 @@ services:
       - DB_NAME=${DB_NAME:-retro}
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - JWT_SECRET=${JWT_SECRET}
+      - REDIS_URL=redis://redis:6379
       - SMTP_HOST=${SMTP_HOST}
       - SMTP_PORT=${SMTP_PORT}
       - SMTP_USER=${SMTP_USER}

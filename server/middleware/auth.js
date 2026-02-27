@@ -12,6 +12,11 @@ const protect = async (req, res, next) => {
 
     try {
         const token = header.split(' ')[1];
+
+        if (!token || token === 'null' || token === 'undefined') {
+            return res.status(401).json({ message: 'Not authorized, invalid token format' });
+        }
+
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
         req.user = await User.findByPk(decoded.id);
         if (!req.user) {

@@ -3,6 +3,8 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import { createAdapter } from '@socket.io/redis-adapter';
+import { createClient } from 'redis';
 import cors from 'cors';
 import { GoogleGenAI, Type } from "@google/genai";
 import jwt from 'jsonwebtoken';
@@ -113,9 +115,26 @@ app.use((req, res) => {
     }
 });
 
+// Redis Setup
+const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
+const pubClient = createClient({ url: redisUrl });
+const subClient = pubClient.duplicate();
+
+pubClient.on('error', (err) => console.error('Redis Pub Client Error', err));
+subClient.on('error', (err) => console.error('Redis Sub Client Error', err));
+
+try {
+    await pubClient.connect();
+    await subClient.connect();
+    console.log('Connected to Redis');
+} catch (err) {
+    console.error('Failed to connect to Redis:', err.message);
+}
+
 const httpServer = createServer(app);
 const io = new Server(httpServer, {
     cors: corsOptions,
+    adapter: createAdapter(pubClient, subClient),
     transports: ['polling', 'websocket'],
     perMessageDeflate: false,
     allowEIO3: true,
@@ -123,20 +142,21 @@ const io = new Server(httpServer, {
     pingTimeout: 5000
 });
 
-// In-memory store for transient state (participants online)
-const socketToUser = new Map(); // socket.id -> { user, sessionId }
+// In-memory store for transient state (local to this instance)
+// socket.id -> { user, sessionId }
+const socketToUser = new Map();
+// Local tracking for efficient filtered broadcasting
+const sessionToSockets = new Map();
 
-const getParticipants = (sessionId) => {
-    const participants = [];
-    const seenUserIds = new Set();
-
-    for (const [id, data] of socketToUser.entries()) {
-        if (data.sessionId === sessionId && !seenUserIds.has(data.user.id)) {
-            participants.push(data.user);
-            seenUserIds.add(data.user.id);
-        }
+// Redis-backed participant state (Global across all instances)
+const getParticipants = async (sessionId) => {
+    try {
+        const userJsonList = await pubClient.hVals(`session:${sessionId}:participants`);
+        return userJsonList.map(json => JSON.parse(json));
+    } catch (error) {
+        console.error('Error fetching participants from Redis:', error);
+        return [];
     }
-    return participants;
 };
 
 const isBrainstormPhase = (sessionData) => sessionData?.phase === 'BRAINSTORM';
@@ -165,8 +185,15 @@ const buildVisibleSessionForUser = (sessionData, user, status) => ({
 });
 
 const emitSessionUpdateForRoom = (sessionId, sessionData, status) => {
-    for (const [socketId, data] of socketToUser.entries()) {
-        if (data.sessionId !== sessionId) continue;
+    // We iterate through LOCAL sockets in this session to send filtered views.
+    // The Redis adapter handles the cross-node part if we were doing a plain broadcast,
+    // but since we need per-user filtering, each node handles its own local clients.
+    const socketIds = sessionToSockets.get(sessionId);
+    if (!socketIds) return;
+
+    for (const socketId of socketIds) {
+        const data = socketToUser.get(socketId);
+        if (!data) continue;
         io.to(socketId).emit('session-updated', buildVisibleSessionForUser(sessionData, data.user, status));
     }
 };
@@ -267,7 +294,16 @@ io.on('connection', (socket) => {
         socket.join(sessionId);
         socketToUser.set(socket.id, { user: safeUser, sessionId });
 
-        console.log(`User ${safeUser.name} (${socket.id}) joined session room: "${sessionId}"`);
+        // track session sockets locally
+        if (!sessionToSockets.has(sessionId)) {
+            sessionToSockets.set(sessionId, new Set());
+        }
+        sessionToSockets.get(sessionId).add(socket.id);
+
+        // track session user in Redis
+        await pubClient.hSet(`session:${sessionId}:participants`, safeUser.id, JSON.stringify(safeUser));
+
+        console.log(`User ${safeUser.name} (${socket.id}) joined session room: "${sessionId}" | Global users in session: ${await pubClient.hLen(`session:${sessionId}:participants`)}`);
 
         try {
             // Find session in DB or create it
@@ -281,6 +317,10 @@ io.on('connection', (socket) => {
 
                 const joinedUser = { ...safeUser, isAdmin: isAdminForSession };
                 socketToUser.set(socket.id, { user: joinedUser, sessionId });
+
+                // update with potential admin status
+                await pubClient.hSet(`session:${sessionId}:participants`, safeUser.id, JSON.stringify(joinedUser));
+
                 socket.emit('session-updated', buildVisibleSessionForUser(sessionData, joinedUser, session.status));
             } else {
                 // FALLBACK: Only create if the joining user is an actual admin
@@ -305,6 +345,9 @@ io.on('connection', (socket) => {
                     session = newSession;
                     const joinedUser = { ...safeUser, isAdmin: true };
                     socketToUser.set(socket.id, { user: joinedUser, sessionId });
+
+                    await pubClient.hSet(`session:${sessionId}:participants`, safeUser.id, JSON.stringify(joinedUser));
+
                     socket.emit('session-updated', buildVisibleSessionForUser(defaultData, joinedUser));
                 } else {
                     console.log(`Unauthorized visitor ${safeUser.name} tried to join non-existent session ${sessionId}`);
@@ -314,7 +357,7 @@ io.on('connection', (socket) => {
             }
 
             // Broadcast updated participant list to everyone in the room
-            const participants = getParticipants(sessionId);
+            const participants = await getParticipants(sessionId);
             io.to(sessionId).emit('participants-updated', participants);
         } catch (error) {
             console.error('Error in join-session:', error);
@@ -357,7 +400,7 @@ io.on('connection', (socket) => {
             const session = await Session.findOne({ where: { sessionId: sessionId } });
 
             // Allow updates from participants if they are in the session
-            const participants = getParticipants(sessionId);
+            const participants = await getParticipants(sessionId);
             const isParticipant = participants.some(p => String(p.id) === String(actor.id));
             const isAdmin = !!(session && actor.isAdmin && String(session.adminId) === String(actor.id));
 
@@ -716,31 +759,44 @@ ${JSON.stringify(ticketAliasData)}
         }
     });
 
-    socket.on('toggle-ready', ({ sessionId, isReady }) => {
+    socket.on('toggle-ready', async ({ sessionId, isReady }) => {
         const userData = socketToUser.get(socket.id);
         if (!userData || userData.sessionId !== sessionId) return;
 
         userData.user.isReady = !!isReady;
         socketToUser.set(socket.id, userData);
 
+        // update global state in Redis
+        await pubClient.hSet(`session:${sessionId}:participants`, userData.user.id, JSON.stringify(userData.user));
+
         console.log(`User ${userData.user.name} toggled ready: ${userData.user.isReady}`);
 
         // Broadcast updated participant list
-        const participants = getParticipants(sessionId);
+        const participants = await getParticipants(sessionId);
         io.to(sessionId).emit('participants-updated', participants);
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
 
         const userData = socketToUser.get(socket.id);
         if (userData) {
             const { sessionId } = userData;
             socketToUser.delete(socket.id);
 
-            console.log(`User disconnected: ${socket.id} (from ${sessionId})`);
+            // cleanup local session socket tracking
+            const sIds = sessionToSockets.get(sessionId);
+            if (sIds) {
+                sIds.delete(socket.id);
+                if (sIds.size === 0) sessionToSockets.delete(sessionId);
+            }
+
+            // cleanup global session state in Redis
+            await pubClient.hDel(`session:${sessionId}:participants`, userData.user.id);
+
+            console.log(`User disconnected: ${socket.id} (from ${sessionId}) | Users remaining locally: ${socketToUser.size}`);
 
             // Broadcast updated participant list
-            const participants = getParticipants(sessionId);
+            const participants = await getParticipants(sessionId);
             io.to(sessionId).emit('participants-updated', participants);
         } else {
             console.log('User disconnected:', socket.id);
