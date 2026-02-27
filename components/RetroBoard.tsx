@@ -136,6 +136,22 @@ const RetroBoard: React.FC = () => {
         return [...themes].sort((a, b) => b.votes - a.votes);
     };
 
+    const handleCloseSession = () => {
+        if (!session) return;
+
+        if (isAdmin) {
+            socket.emit('close-session', { sessionId: session.id }, (response: any) => {
+                if (response.success) {
+                    navigate('/');
+                } else {
+                    setError("Failed to close session: " + response.error);
+                }
+            });
+        } else {
+            navigate('/');
+        }
+    };
+
     const handleNextPhase = async () => {
         if (!session || !isAdmin) return;
         setError(null);
@@ -165,6 +181,9 @@ const RetroBoard: React.FC = () => {
                 themes: sortedThemes,
                 currentThemeIndex: 0
             };
+        } else if (session.phase === RetroPhase.DISCUSSION) {
+            handleCloseSession();
+            return;
         } else if (currentIndex < phases.length - 1) {
             updatedSession = { ...session, phase: phases[currentIndex + 1] };
         }
@@ -250,15 +269,11 @@ const RetroBoard: React.FC = () => {
                 onNextPhase={handleNextPhase}
                 onReset={() => {
                     if (isAdmin) {
-                        socket.emit('close-session', { sessionId: session.id }, (response: any) => {
-                            if (response.success) {
-                                navigate('/');
-                            } else {
-                                setError("Failed to close session: " + response.error);
-                            }
-                        });
+                        if (window.confirm("Do you want to close this session for everyone? This will save it to your history.")) {
+                            handleCloseSession();
+                        }
                     } else {
-                        navigate('/');
+                        handleCloseSession();
                     }
                 }}
                 onUpdateSession={(updates) => socket.emit('update-session', { sessionData: { ...session, ...updates } })}

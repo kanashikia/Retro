@@ -175,8 +175,26 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
         {error && <div className="text-red-600 text-sm font-bold px-4 py-2 bg-red-50 rounded-lg flex items-center gap-2 animate-pulse"><AlertCircle className="w-4 h-4" /> {error}</div>}
         {currentUser.isAdmin && (
           <button onClick={onNextPhase} disabled={isLoading} className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-xl text-base font-bold transition-all shadow-md active:scale-95 disabled:opacity-50">
-            {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (session.phase === RetroPhase.BRAINSTORM ? <Sparkles className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />)}
-            {session.phase === RetroPhase.BRAINSTORM ? "Group with AI" : "Next"}
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+            ) : (
+              <>
+                {session.phase === RetroPhase.BRAINSTORM ? (
+                  <Sparkles className="w-5 h-5" />
+                ) : session.phase === RetroPhase.DISCUSSION ? (
+                  <CheckCircle2 className="w-5 h-5" />
+                ) : (
+                  <ChevronRight className="w-5 h-5" />
+                )}
+                <span>
+                  {session.phase === RetroPhase.BRAINSTORM
+                    ? "Group with AI"
+                    : session.phase === RetroPhase.DISCUSSION
+                      ? "Save & Close Session"
+                      : "Next"}
+                </span>
+              </>
+            )}
           </button>
         )}
         {previousActions.length > 0 && (

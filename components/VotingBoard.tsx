@@ -49,8 +49,8 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, o
           <div key={theme.id} className={`bg-surface rounded-[2rem] border-2 p-8 space-y-6 flex flex-col transition-all hover:shadow-xl ${theme.voterIds.includes(currentUser.id) ? 'border-primary ring-4 ring-primary/20' : 'border-border'}`}>
             <div className="flex items-start justify-between gap-4">
               <div className="space-y-1">
-                <h3 className="font-black text-2xl text-text">{theme.name}</h3>
-                <p className="text-sm text-text-muted font-medium leading-relaxed">{theme.description}</p>
+                <h3 className="font-black text-2xl text-text break-words">{theme.name}</h3>
+                <p className="text-sm text-text-muted font-medium leading-relaxed break-words">{theme.description}</p>
               </div>
               <div className="text-center shrink-0">
                 <div className="bg-secondary text-primary px-4 py-2 rounded-xl border border-primary/20">

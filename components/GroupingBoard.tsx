@@ -157,7 +157,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
                     <button onClick={saveThemeName} className="text-green-500 hover:text-green-600"><Check className="w-5 h-5" /></button>
                   </div>
                 ) : (
-                  <h3 className="font-black text-2xl text-text flex-1 truncate">{theme.name}</h3>
+                  <h3 className="font-black text-2xl text-text flex-1 break-words">{theme.name}</h3>
                 )}
 
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -165,7 +165,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
                   <button onClick={() => deleteTheme(theme.id)} className="p-1.5 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
                 </div>
               </div>
-              <p className="text-sm text-text-muted font-medium leading-relaxed truncate">{theme.description}</p>
+              <p className="text-sm text-text-muted font-medium leading-relaxed break-words">{theme.description}</p>
             </div>
 
             <div className="flex flex-col gap-3 flex-1">
