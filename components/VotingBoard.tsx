@@ -9,12 +9,18 @@ import ReactionPicker from './ReactionPicker';
 interface Props {
   session: SessionState;
   currentUser: User;
+  participants: User[];
   onUpdateSession: (s: SessionState) => void;
   onUpdateUser: (u: User) => void;
   onToggleReaction: (ticketId: string, emoji: string) => void;
 }
 
-const VotingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onUpdateUser, onToggleReaction }) => {
+const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUpdateSession, onUpdateUser, onToggleReaction }) => {
+  const getVotesForUser = (userId: string) => {
+    return (session.themes || []).reduce((acc, theme) =>
+      acc + (theme.voterIds?.filter(id => id === userId).length || 0), 0);
+  };
+
   const handleVote = (themeId: string) => {
     if (currentUser.votesRemaining <= 0) return;
 
@@ -43,6 +49,51 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, o
           You can cast multiple votes on the same theme.
         </p>
       </div>
+
+      {currentUser.isAdmin && (
+        <div className="bg-surface/50 border-2 border-border border-dashed rounded-[2rem] p-5 max-w-4xl mx-auto shadow-sm">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-5">
+            <h3 className="text-lg font-black text-text flex items-center gap-2">
+              <span className="w-2 h-2 bg-primary rounded-full animate-pulse" />
+              Participants Voting Status
+            </h3>
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-black uppercase tracking-wider text-text-muted">Total Ready</span>
+                <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-black">
+                  {participants.filter(p => getVotesForUser(p.id) >= 5).length} / {participants.length}
+                </span>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-3 max-h-[180px] overflow-y-auto pr-2 no-scrollbar">
+            {participants.map(p => {
+              const votes = getVotesForUser(p.id);
+              const isDone = votes >= 5;
+              return (
+                <div
+                  key={p.id}
+                  title={`${p.name}: ${votes}/5 votes`}
+                  className={`flex items-center justify-between gap-2 px-3 py-2 rounded-xl border-2 transition-all group ${isDone
+                      ? 'bg-primary/5 border-primary/30 text-primary'
+                      : 'bg-surface border-border text-text-muted hover:border-border-hover'
+                    }`}
+                >
+                  <span className="font-bold text-xs truncate max-w-[80px]">{p.name}</span>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-md ${isDone ? 'bg-primary/20' : 'bg-black/5'
+                      }`}>
+                      {votes}
+                    </span>
+                    {isDone && <span className="text-xs">✅</span>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {(session.themes || []).map(theme => (
