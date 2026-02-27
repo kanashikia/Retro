@@ -130,7 +130,7 @@ const RetroBoard: React.FC = () => {
         }
     }, [currentUser]);
 
-    const isAdmin = currentUser?.isAdmin || (session && currentUser && session.adminId === currentUser.id);
+    const isAdmin = session && currentUser && String(session.adminId) === String(currentUser.id);
 
     const sortThemesByVotes = (themes: ThemeGroup[]) => {
         return [...themes].sort((a, b) => b.votes - a.votes);
