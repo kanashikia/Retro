@@ -110,8 +110,30 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
           ))}
       </div>
 
+      {currentUser.isAdmin && (
+        <div className="flex items-center justify-center gap-8 py-4 border-y border-border bg-surface/50 rounded-[2.5rem]">
+          <button
+            disabled={session.currentThemeIndex === 0}
+            onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex - 1 })}
+            className="flex items-center gap-3 px-8 py-4 bg-surface border-2 border-border rounded-2xl font-black text-text hover:bg-secondary transition-all disabled:opacity-30 shadow-sm active:scale-95 text-sm"
+          >
+            <ChevronLeft className="w-5 h-5" /> Previous
+          </button>
+          <div className="text-xs font-black text-text-muted uppercase tracking-widest min-w-[100px] text-center">
+            {session.currentThemeIndex + 1} / {(session.themes || []).length}
+          </div>
+          <button
+            disabled={session.currentThemeIndex === (session.themes || []).length - 1}
+            onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex + 1 })}
+            className="flex items-center gap-3 px-8 py-4 bg-primary text-white rounded-2xl font-black hover:bg-primary-hover transition-all disabled:opacity-30 shadow-xl shadow-primary/20 active:scale-95 text-sm"
+          >
+            Next Topic <ChevronRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+
       {/* Action Items Section */}
-      <div className="mt-10 pt-10 border-t border-border space-y-8 pb-32">
+      <div className="mt-4 pt-10 border-t border-border space-y-8">
         <div className="flex items-center justify-between">
           <div className="space-y-1">
             <h3 className="text-3xl font-black text-text uppercase tracking-tight">Action Items</h3>
@@ -208,24 +230,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
           </div>
         )}
       </div>
-      {currentUser.isAdmin && (
-        <div className="flex items-center justify-center gap-8 py-6 sticky bottom-0 bg-background/80 backdrop-blur-md border-t border-border z-20">
-          <button
-            disabled={session.currentThemeIndex === 0}
-            onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex - 1 })}
-            className="flex items-center gap-3 px-10 py-5 bg-surface border-2 border-border rounded-2xl font-black text-text hover:bg-secondary transition-all disabled:opacity-30 shadow-sm active:scale-95"
-          >
-            <ChevronLeft className="w-7 h-7" /> Previous
-          </button>
-          <button
-            disabled={session.currentThemeIndex === (session.themes || []).length - 1}
-            onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex + 1 })}
-            className="flex items-center gap-3 px-10 py-5 bg-primary text-white rounded-2xl font-black hover:bg-primary-hover transition-all disabled:opacity-30 shadow-xl shadow-primary/20 active:scale-95"
-          >
-            Next Topic <ChevronRight className="w-7 h-7" />
-          </button>
-        </div>
-      )}
+
     </div>
   );
 };
