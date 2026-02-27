@@ -35,24 +35,6 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       setupFiles: './setupTests.ts',
       pool: 'threads',
-      deps: {
-        optimizer: {
-          web: {
-            enabled: true,
-            include: ['@exodus/bytes', 'html-encoding-sniffer'],
-          },
-        },
-      },
-      server: {
-        deps: {
-          inline: [
-            'jsdom',
-            'html-encoding-sniffer',
-            'whatwg-url',
-            '@exodus/bytes',
-          ],
-        },
-      },
     },
   };
 });
