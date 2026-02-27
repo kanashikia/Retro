@@ -1,20 +1,49 @@
-
 import React from 'react';
-import { ChevronLeft, ChevronRight, LayoutDashboard, Vote } from 'lucide-react';
-import { SessionState, User } from '../types';
+import { Action, SessionState, User } from '../types';
 import { getColumnColorClass, getColumnSecondaryColorClass } from '../utils/colors';
+import { Plus, Trash2, CheckCircle2, ChevronLeft, ChevronRight, LayoutDashboard, Vote, History } from 'lucide-react';
+import { v4 as uuidv4 } from 'uuid';
 import ReactionBadge from './ReactionBadge';
 import ReactionPicker from './ReactionPicker';
 
 interface Props {
   session: SessionState;
   currentUser: User;
+  participants: User[];
   onUpdateSession: (s: SessionState) => void;
   onToggleReaction: (ticketId: string, emoji: string) => void;
 }
 
-const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onToggleReaction }) => {
+const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, onUpdateSession, onToggleReaction }) => {
   const currentTheme = (session.themes || [])[session.currentThemeIndex];
+  const [newActionText, setNewActionText] = React.useState('');
+  const [selectedAssigneeId, setSelectedAssigneeId] = React.useState('');
+  const isReadOnly = session.status === 'closed';
+
+
+  const handleAddAction = () => {
+    if (!newActionText.trim() || !selectedAssigneeId || isReadOnly) return;
+
+    const assignee = participants.find(p => p.id === selectedAssigneeId);
+    if (!assignee) return;
+
+    const newAction: Action = {
+      id: uuidv4(),
+      text: newActionText.trim(),
+      assigneeId: selectedAssigneeId,
+      assigneeName: assignee.name
+    };
+
+    const updatedActions = [...(session.actions || []), newAction];
+    onUpdateSession({ ...session, actions: updatedActions });
+    setNewActionText('');
+    setSelectedAssigneeId('');
+  };
+
+  const handleRemoveAction = (actionId: string) => {
+    const updatedActions = (session.actions || []).filter(a => a.id !== actionId);
+    onUpdateSession({ ...session, actions: updatedActions });
+  };
 
   if (!currentTheme) return (
     <div className="flex flex-col items-center justify-center h-full text-center space-y-6 py-20">
@@ -39,7 +68,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
         <p className="text-2xl text-text-muted max-w-3xl mx-auto leading-relaxed">{currentTheme.description}</p>
       </div>
 
-      <div className="flex-1 space-y-6 overflow-y-auto pr-4 no-scrollbar pb-10">
+      <div className="space-y-6">
         <h3 className="text-xs font-black text-text-muted uppercase tracking-[0.2em] text-center mb-4">Cards linked to this theme</h3>
         {(session.tickets || [])
           .filter(t => t.themeId === currentTheme.id)
@@ -81,8 +110,106 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, onUpdateSessio
           ))}
       </div>
 
+      {/* Action Items Section */}
+      <div className="mt-10 pt-10 border-t border-border space-y-8 pb-32">
+        <div className="flex items-center justify-between">
+          <div className="space-y-1">
+            <h3 className="text-3xl font-black text-text uppercase tracking-tight">Action Items</h3>
+            <p className="text-text-muted font-medium italic text-sm">Designate responsible participants for key takeaways.</p>
+          </div>
+          <div className="px-4 py-2 bg-secondary text-text-muted text-xs font-black rounded-xl uppercase tracking-widest border border-border">
+            {(session.actions || []).length} Total
+          </div>
+        </div>
+      </div>
+
+
+      <div className="grid lg:grid-cols-3 gap-8">
+        {/* List of actions */}
+        <div className="lg:col-span-2 space-y-4">
+          {(session.actions || []).length > 0 ? (
+            (session.actions || []).map((action) => (
+              <div key={action.id} className="bg-surface p-6 rounded-3xl border border-border flex items-center justify-between hover:border-primary/30 transition-all group shadow-sm bg-gradient-to-r from-surface to-background/50">
+                <div className="flex items-start gap-5">
+                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 shrink-0">
+                    <CheckCircle2 className="w-5 h-5 text-primary" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-bold text-text text-lg leading-tight">{action.text}</p>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs font-black text-text-muted uppercase tracking-[0.1em]">Assigned to:</span>
+                      <span className="px-2 py-0.5 bg-secondary text-text text-[11px] font-black rounded-md uppercase tracking-wider">{action.assigneeName}</span>
+                    </div>
+                  </div>
+                </div>
+                {!isReadOnly && (
+                  <button
+                    onClick={() => handleRemoveAction(action.id)}
+                    className="p-3 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-xl transition-all opacity-0 group-hover:opacity-100"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="p-10 bg-surface/50 rounded-[2.5rem] border-2 border-dashed border-border flex flex-col items-center justify-center text-center space-y-3">
+              <div className="w-12 h-12 bg-secondary rounded-2xl flex items-center justify-center"><Plus className="w-6 h-6 text-text-muted" /></div>
+              <p className="text-text-muted font-black uppercase tracking-widest text-xs">{isReadOnly ? 'No actions were created' : 'No actions created yet'}</p>
+            </div>
+          )}
+        </div>
+
+        {/* Add Action Form */}
+        {!isReadOnly ? (
+          <div className="bg-surface p-8 rounded-[2.5rem] border-2 border-border shadow-xl space-y-6 h-fit sticky top-6">
+            <h4 className="text-xl font-black text-text">New Action</h4>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-black text-text-muted uppercase tracking-widest">Description</label>
+                <textarea
+                  value={newActionText}
+                  onChange={(e) => setNewActionText(e.target.value)}
+                  placeholder="What needs to be done?"
+                  className="w-full px-5 py-4 bg-background border-2 border-border rounded-2xl focus:border-primary outline-none transition-all text-sm font-medium h-32 resize-none"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-black text-text-muted uppercase tracking-widest">Assign to</label>
+                <select
+                  value={selectedAssigneeId}
+                  onChange={(e) => setSelectedAssigneeId(e.target.value)}
+                  className="w-full px-5 py-4 bg-background border-2 border-border rounded-2xl focus:border-primary outline-none transition-all text-sm font-bold appearance-none cursor-pointer"
+                >
+                  <option value="">Select someone...</option>
+                  {participants.map(p => (
+                    <option key={p.id} value={p.id}>{p.name} {p.id === currentUser.id ? '(You)' : ''}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                disabled={!newActionText.trim() || !selectedAssigneeId}
+                onClick={handleAddAction}
+                className="w-full bg-primary text-white font-black py-4 rounded-2xl hover:bg-primary-hover transition-all disabled:opacity-30 disabled:grayscale active:scale-95 flex items-center justify-center gap-2 shadow-lg shadow-primary/20"
+              >
+                <Plus className="w-5 h-5" /> Add Action Item
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="bg-surface/30 p-8 rounded-[2.5rem] border-2 border-border border-dashed space-y-6 h-fit sticky top-6 flex flex-col items-center justify-center text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-2">
+              <LayoutDashboard className="w-8 h-8 text-primary/40" />
+            </div>
+            <div className="space-y-2">
+              <h4 className="text-lg font-black text-text italic tracking-tight">Session Closed</h4>
+              <p className="text-text-muted text-sm font-medium leading-relaxed">This session is in read-only mode. Actions cannot be modified.</p>
+            </div>
+          </div>
+        )}
+      </div>
       {currentUser.isAdmin && (
-        <div className="flex items-center justify-center gap-8 py-6 sticky bottom-0 bg-background/80 backdrop-blur-md border-t border-border">
+        <div className="flex items-center justify-center gap-8 py-6 sticky bottom-0 bg-background/80 backdrop-blur-md border-t border-border z-20">
           <button
             disabled={session.currentThemeIndex === 0}
             onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex - 1 })}

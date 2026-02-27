@@ -7,10 +7,10 @@ export enum RetroPhase {
 }
 
 export enum ColumnType {
-  PUZZLES = 'What puzzles us',
   WELL = 'What went well',
+  LESS_WELL = 'What went less well',
   TRY_NEXT = 'What do we want to try next',
-  LESS_WELL = 'What went less well'
+  PUZZLES = 'What puzzles us'
 }
 
 export interface Ticket {
@@ -41,11 +41,20 @@ export interface User {
   isReady?: boolean;
 }
 
+export interface Action {
+  id: string;
+  text: string;
+  assigneeId: string;
+  assigneeName: string;
+}
+
 export interface SessionState {
   id: string;
+  status?: string;
   phase: RetroPhase;
   tickets: Ticket[];
   themes: ThemeGroup[];
+  actions?: Action[];
   currentThemeIndex: number;
   adminId: string;
   brainstormTimerEndsAt?: number | null;

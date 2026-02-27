@@ -30,6 +30,7 @@ const RetroBoard: React.FC = () => {
     const [isJoining, setIsJoining] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [previousActions, setPreviousActions] = useState<any[]>([]);
     const { setSessionDefaultThemeId } = useTheme();
 
     useEffect(() => {
@@ -66,8 +67,8 @@ const RetroBoard: React.FC = () => {
         });
 
         socket.on('session-closed', () => {
+            setSession(prev => prev ? { ...prev, status: 'closed' } : null);
             alert("The session has been closed by the administrator.");
-            navigate('/');
         });
 
         return () => {
@@ -89,7 +90,24 @@ const RetroBoard: React.FC = () => {
         if (!currentUser || !sessionId) return;
         const token = localStorage.getItem('retro_token');
         socket.emit('join-session', { sessionId, user: currentUser, token });
-    }, [currentUser?.id, sessionId]);
+
+        // Fetch previous actions for the admin
+        const fetchPreviousActions = async () => {
+            if (!session?.adminId || session.adminId === 'pending') return;
+            try {
+                const response = await fetch(`/api/sessions/last-actions/${session.adminId}/${sessionId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (response.ok) {
+                    const data = await response.json();
+                    setPreviousActions(data.actions || []);
+                }
+            } catch (err) {
+                console.error("Error fetching previous actions:", err);
+            }
+        };
+        fetchPreviousActions();
+    }, [currentUser?.id, sessionId, session?.adminId]);
 
     const initializePlaceholderSession = (id: string) => {
         setSession({
@@ -228,6 +246,7 @@ const RetroBoard: React.FC = () => {
                 participants={participants}
                 isLoading={isLoading}
                 error={error}
+                previousActions={previousActions}
                 onNextPhase={handleNextPhase}
                 onReset={() => {
                     if (isAdmin) {
@@ -245,11 +264,11 @@ const RetroBoard: React.FC = () => {
                 onUpdateSession={(updates) => socket.emit('update-session', { sessionData: { ...session, ...updates } })}
             />
             <PhaseStepper currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />
-            <main className="flex-1 p-6 lg:p-10 overflow-auto">
+            <main className="flex-1 p-6 lg:p-10 mt-8 overflow-auto">
                 {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateSession={(s) => { console.log('Emitting update-session (brainstorm)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReady={handleToggleReady} />}
                 {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (grouping)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReaction={handleToggleReaction} />}
                 {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (voting)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onUpdateUser={setCurrentUser} onToggleReaction={handleToggleReaction} />}
-                {session.phase === RetroPhase.DISCUSSION && <DiscussionBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (discussion)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReaction={handleToggleReaction} />}
+                {session.phase === RetroPhase.DISCUSSION && <DiscussionBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateSession={(s) => { console.log('Emitting update-session (discussion)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReaction={handleToggleReaction} />}
             </main>
         </div>
     );

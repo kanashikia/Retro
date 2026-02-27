@@ -49,4 +49,32 @@ router.get('/history/:adminId', protect, async (req, res) => {
     }
 });
 
+// Get actions from the last closed session for an admin
+router.get('/last-actions/:adminId/:currentSessionId', protect, async (req, res) => {
+    try {
+        if (String(req.user.id) !== String(req.params.adminId)) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
+        const lastSession = await Session.findOne({
+            where: {
+                adminId: req.params.adminId,
+                status: 'closed',
+            },
+            order: [['updatedAt', 'DESC']]
+        });
+
+        if (!lastSession) {
+            return res.json({ actions: [] });
+        }
+
+        const sessionData = typeof lastSession.data === 'string'
+            ? JSON.parse(lastSession.data)
+            : lastSession.data;
+
+        res.json({ actions: sessionData.actions || [] });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 export default router;

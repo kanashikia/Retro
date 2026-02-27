@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate, Link } from 'react-router-dom';
-import { LayoutDashboard, Plus, History, LogOut } from 'lucide-react';
+import { LayoutDashboard, Plus, History, LogOut, CheckCircle2 } from 'lucide-react';
 
 const Home: React.FC = () => {
     const navigate = useNavigate();
@@ -162,12 +162,33 @@ const Home: React.FC = () => {
                                         return (
                                             <div key={sessionId || `history-${index}`} className="p-4 bg-background rounded-2xl border border-border flex items-center justify-between hover:border-primary/30 transition-colors group">
                                                 <div className="space-y-1">
-                                                    <p className="font-bold text-text">Session {label}</p>
-                                                    <p className="text-xs text-text-muted font-medium">
-                                                        {updatedAt && !Number.isNaN(updatedAt.getTime())
-                                                            ? `${updatedAt.toLocaleDateString()} at ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
-                                                            : 'Date unavailable'}
-                                                    </p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="font-bold text-text">Session {label}</p>
+                                                        {session.status === 'closed' && (
+                                                            <span className="px-1.5 py-0.5 bg-secondary text-text-muted text-[10px] font-black rounded uppercase tracking-wider border border-border">Closed</span>
+                                                        )}
+                                                    </div>
+                                                    <div className="flex items-center gap-3">
+                                                        <p className="text-xs text-text-muted font-medium">
+                                                            {updatedAt && !Number.isNaN(updatedAt.getTime())
+                                                                ? `${updatedAt.toLocaleDateString()} at ${updatedAt.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`
+                                                                : 'Date unavailable'}
+                                                        </p>
+                                                        {(() => {
+                                                            try {
+                                                                const sessionData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
+                                                                const actionCount = sessionData?.actions?.length || 0;
+                                                                if (actionCount > 0) {
+                                                                    return (
+                                                                        <span className="flex items-center gap-1 text-[10px] font-black text-primary uppercase tracking-tighter">
+                                                                            <CheckCircle2 className="w-3 h-3" /> {actionCount} Actions
+                                                                        </span>
+                                                                    );
+                                                                }
+                                                            } catch (e) { }
+                                                            return null;
+                                                        })()}
+                                                    </div>
                                                 </div>
                                                 {sessionId ? (
                                                     <Link to={`/retro/${sessionId}`} className="px-4 py-2 bg-surface text-primary border border-border rounded-xl text-sm font-bold hover:bg-primary hover:text-white hover:border-primary transition-all opacity-0 group-hover:opacity-100">

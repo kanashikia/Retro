@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { LayoutDashboard, Users, Sparkles, ChevronRight, Copy, LogOut, AlertCircle, Palette } from 'lucide-react';
+import { LayoutDashboard, Users, Sparkles, ChevronRight, Copy, LogOut, AlertCircle, Palette, History, CheckCircle2 } from 'lucide-react';
 import { SessionState, User, RetroPhase } from '../types';
 import Timer from './Timer';
 import { useTheme } from '../context/ThemeContext';
@@ -15,6 +15,7 @@ interface Props {
   onNextPhase: () => void;
   onReset: () => void;
   onUpdateSession: (updates: Partial<SessionState>) => void;
+  previousActions?: any[];
 }
 
 const getUserColor = (name: string) => {
@@ -32,16 +33,20 @@ const getUserColor = (name: string) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
-const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLoading, error, onNextPhase, onReset, onUpdateSession }) => {
+const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLoading, error, onNextPhase, onReset, onUpdateSession, previousActions = [] }) => {
   const { currentTheme, setTheme, isOverridden, resetToDefault, sessionDefaultThemeId } = useTheme();
-
   const [isThemeOpen, setIsThemeOpen] = React.useState(false);
+  const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
   const themeDropdownRef = React.useRef<HTMLDivElement>(null);
+  const historyDropdownRef = React.useRef<HTMLDivElement>(null);
 
   React.useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (themeDropdownRef.current && !themeDropdownRef.current.contains(event.target as Node)) {
         setIsThemeOpen(false);
+      }
+      if (historyDropdownRef.current && !historyDropdownRef.current.contains(event.target as Node)) {
+        setIsHistoryOpen(false);
       }
     };
 
@@ -116,9 +121,9 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
               <div className="p-2 border-b border-border bg-secondary/30">
                 <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Select Theme</span>
               </div>
-              <div className="max-h-[60vh] overflow-y-auto">
+              <div className="max-h-[60vh] overflow-y-auto p-2 space-y-1">
                 {themes.map(theme => (
-                  <div key={theme.id} className="flex items-center justify-between hover:bg-secondary transition-colors group/item px-4 py-2">
+                  <div key={theme.id} className="flex items-center justify-between hover:bg-secondary transition-colors group/item px-4 py-3 rounded-xl">
                     <button
                       onClick={() => {
                         setTheme(theme.id);
@@ -173,6 +178,46 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
             {isLoading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : (session.phase === RetroPhase.BRAINSTORM ? <Sparkles className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />)}
             {session.phase === RetroPhase.BRAINSTORM ? "Group with AI" : "Next"}
           </button>
+        )}
+        {previousActions.length > 0 && (
+          <div className="relative" ref={historyDropdownRef}>
+            <button
+              onClick={() => setIsHistoryOpen(!isHistoryOpen)}
+              className={`p-2.5 rounded-xl transition-colors border ${isHistoryOpen ? 'bg-secondary text-primary border-border' : 'text-text-muted hover:bg-secondary hover:text-text border-transparent hover:border-border'}`}
+              title="View Previous Session Actions"
+            >
+              <History className="w-6 h-6" />
+              <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-surface">
+                {previousActions.length}
+              </div>
+            </button>
+
+            {isHistoryOpen && (
+              <div className="absolute right-0 top-full mt-2 w-80 bg-surface border-2 border-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+                <div className="p-4 border-b border-border bg-secondary/30 flex items-center justify-between">
+                  <span className="text-xs font-black text-text uppercase tracking-widest flex items-center gap-2">
+                    <History className="w-4 h-4 text-primary" /> Last Session Takeaways
+                  </span>
+                </div>
+                <div className="max-h-[60vh] overflow-y-auto p-2 space-y-2">
+                  {previousActions.map((action, idx) => (
+                    <div key={idx} className="p-3 bg-background rounded-xl border border-border/50 space-y-1">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle2 className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                        <p className="text-sm font-bold text-text leading-snug">{action.text}</p>
+                      </div>
+                      <div className="flex items-center gap-2 pl-7">
+                        <span className="text-[10px] font-black text-text-muted uppercase tracking-tighter">Assigned: {action.assigneeName}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="p-3 bg-secondary/10 border-t border-border">
+                  <p className="text-[9px] text-text-muted text-center italic">These actions were carried over for reference.</p>
+                </div>
+              </div>
+            )}
+          </div>
         )}
         <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("Link copied!"); }} className="p-2.5 hover:bg-secondary rounded-xl text-text-muted hover:text-text transition-colors border border-transparent hover:border-border" title="Copy share link"><Copy className="w-6 h-6" /></button>
         <button onClick={() => {

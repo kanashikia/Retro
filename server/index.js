@@ -158,15 +158,16 @@ const getVisibleTicketsForUser = (sessionData, user) => {
     });
 };
 
-const buildVisibleSessionForUser = (sessionData, user) => ({
+const buildVisibleSessionForUser = (sessionData, user, status) => ({
     ...sessionData,
+    status: status || sessionData.status,
     tickets: getVisibleTicketsForUser(sessionData, user)
 });
 
-const emitSessionUpdateForRoom = (sessionId, sessionData) => {
+const emitSessionUpdateForRoom = (sessionId, sessionData, status) => {
     for (const [socketId, data] of socketToUser.entries()) {
         if (data.sessionId !== sessionId) continue;
-        io.to(socketId).emit('session-updated', buildVisibleSessionForUser(sessionData, data.user));
+        io.to(socketId).emit('session-updated', buildVisibleSessionForUser(sessionData, data.user, status));
     }
 };
 
@@ -280,7 +281,7 @@ io.on('connection', (socket) => {
 
                 const joinedUser = { ...safeUser, isAdmin: isAdminForSession };
                 socketToUser.set(socket.id, { user: joinedUser, sessionId });
-                socket.emit('session-updated', buildVisibleSessionForUser(sessionData, joinedUser));
+                socket.emit('session-updated', buildVisibleSessionForUser(sessionData, joinedUser, session.status));
             } else {
                 // FALLBACK: Only create if the joining user is an actual admin
                 // (This handles cases where the session wasn't pre-created for some reason)
@@ -421,7 +422,7 @@ io.on('connection', (socket) => {
             });
 
             // Broadcast a filtered view to each participant.
-            emitSessionUpdateForRoom(sessionId, updatedData);
+            emitSessionUpdateForRoom(sessionId, updatedData, session.status);
             console.log(`Session ${sessionId} updated and broadcasted with per-user visibility. New theme count: ${updatedData.themes?.length || 0}`);
         } catch (error) {
             console.error('Error in update-session:', error);

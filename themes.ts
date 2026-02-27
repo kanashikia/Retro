@@ -264,7 +264,11 @@ export const themes: Theme[] = [
             }
             
             [data-theme="neo-brutalism"] main {
-                padding: 0 16px;
+                padding: 16px;
+            }
+
+            [data-theme="neo-brutalism"] .group\\/item {
+                margin-bottom: 8px;
             }
 
             [data-theme="neo-brutalism"] .shadow-sm, 
