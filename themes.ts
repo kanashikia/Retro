@@ -51,8 +51,8 @@ export const themes: Theme[] = [
         },
     },
     {
-        id: 'warcraft',
-        name: 'Warcraft (Orc)',
+        id: 'orcish-horde',
+        name: 'Orcish Horde',
         backgroundImage: 'https://www.startpage.com/av/proxy-image?piurl=https%3A%2F%2Fi.ytimg.com%2Fvi%2FQ2zfx5hQ3CE%2Fmaxresdefault.jpg&sp=1771073899T577f2d7101e6d0c883e6acde61e2c007094f52458d4429040184954269d79f48', // Placeholder parchment texture
         fontFamily: '"Cinzel", serif',
         customCss: `
@@ -93,8 +93,8 @@ export const themes: Theme[] = [
         },
     },
     {
-        id: 'ff7',
-        name: 'Final Fantasy VII',
+        id: 'midgar-night',
+        name: 'Midgar Night',
         backgroundImage: 'https://www.startpage.com/av/proxy-image?piurl=https%3A%2F%2Fcdn.wccftech.com%2Fwp-content%2Fuploads%2F2024%2F02%2Ffinal-fantasy-vii-rebirth-HD-scaled.jpg&sp=1771079036Tcbb5c5adee46708cdfbbb10c4f2ae729609f54b1acbd06fc4f7591298b729260', // Midgar/Buster Sword vibe
         fontFamily: '"Orbitron", sans-serif',
         customCss: `
