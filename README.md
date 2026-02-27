@@ -126,3 +126,8 @@ This application uses a server-side proxy to communicate with the Gemini API. Th
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🤝 Community
+
+- [Security Policy](SECURITY.md)
+- [Contributing Guidelines](CONTRIBUTING.md)
