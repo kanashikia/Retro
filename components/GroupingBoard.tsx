@@ -119,9 +119,9 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
         onDragStart={(e) => handleDragStart(e, ticket.id)}
         onClick={() => isLong && setExpanded(prev => !prev)}
         title={ticket.text}
-        className={`flex items-start gap-2 py-1.5 px-2.5 rounded-lg border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[13px] leading-snug group/ticket ${isLong ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)}`}
+        className={`flex items-start gap-1.5 py-1 px-2 rounded-md border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[12px] leading-snug group/ticket ${isLong ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)}`}
       >
-        <GripVertical className="w-3 h-3 text-text-muted/40 shrink-0 mt-0.5 group-hover/ticket:text-text-muted transition-colors" />
+        <GripVertical className="w-2.5 h-2.5 text-text-muted/40 shrink-0 mt-0.5 group-hover/ticket:text-text-muted transition-colors" />
         <span className={`text-text flex-1 min-w-0 ${expanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>
           {ticket.text}
         </span>
@@ -132,7 +132,6 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
   const GroupColumn = ({
     groupId,
     title,
-    subtitle,
     tickets,
     themeId,
     isUnassigned = false,
@@ -140,7 +139,6 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
   }: {
     groupId: string;
     title: string;
-    subtitle?: string;
     tickets: Ticket[];
     themeId: string | undefined;
     isUnassigned?: boolean;
@@ -151,9 +149,9 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
     return (
       <div
-        className={`flex flex-col rounded-2xl border-2 transition-all duration-200 shrink-0 ${isUnassigned
-          ? 'bg-secondary/20 border-dashed border-border min-w-[240px] w-[240px]'
-          : 'bg-surface border-border min-w-[260px] w-[260px]'
+        className={`flex flex-col rounded-xl border-2 transition-all duration-200 shrink-0 ${isUnassigned
+          ? 'bg-secondary/20 border-dashed border-border min-w-[160px] w-[160px]'
+          : 'bg-surface border-border min-w-[170px] w-[170px]'
           } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} ${isCollapsed ? 'h-fit' : 'h-[calc(100vh-220px)]'
           }`}
         onDragOver={(e) => handleDragOver(e, groupId)}
@@ -162,13 +160,13 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
       >
         {/* Header — always visible, acts as drop target */}
         <div
-          className={`flex items-center gap-2 px-4 py-3 border-b border-border cursor-pointer select-none shrink-0 ${isDragOver ? 'bg-primary/10' : ''
+          className={`flex items-center gap-1.5 px-2.5 py-2 border-b border-border cursor-pointer select-none shrink-0 ${isDragOver ? 'bg-primary/10' : ''
             }`}
           onClick={() => toggleCollapse(groupId)}
         >
           {isCollapsed
-            ? <ChevronRight className="w-4 h-4 text-text-muted shrink-0" />
-            : <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
+            ? <ChevronRight className="w-3 h-3 text-text-muted shrink-0" />
+            : <ChevronDown className="w-3 h-3 text-text-muted shrink-0" />
           }
           <div className="flex-1 min-w-0">
             {editingThemeId === theme?.id ? (
@@ -178,20 +176,17 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
                   value={editThemeName}
                   onChange={(e) => setEditThemeName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') saveThemeName(); }}
-                  className="w-full text-sm font-bold text-text bg-background rounded px-2 py-0.5 outline-none"
+                  className="w-full text-xs font-bold text-text bg-background rounded px-1.5 py-0.5 outline-none"
                 />
                 <button onClick={saveThemeName} className="text-green-500 hover:text-green-600 shrink-0">
                   <Check className="w-4 h-4" />
                 </button>
               </div>
             ) : (
-              <h3 className="font-bold text-sm text-text truncate">{title}</h3>
-            )}
-            {subtitle && !isCollapsed && (
-              <p className="text-[11px] text-text-muted truncate mt-0.5">{subtitle}</p>
+              <h3 className="font-bold text-[11px] text-text truncate" title={title}>{title}</h3>
             )}
           </div>
-          <span className={`text-[11px] font-black px-2 py-0.5 rounded-full shrink-0 ${tickets.length > 0
+          <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${tickets.length > 0
             ? 'bg-primary/15 text-primary'
             : 'bg-secondary text-text-muted'
             }`}>
@@ -217,7 +212,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
         {/* Ticket list — scrollable */}
         {!isCollapsed && (
-          <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-0">
+          <div className="flex-1 overflow-y-auto p-2 space-y-1 min-h-0">
             {tickets.map(t => (
               <CompactTicket key={t.id} ticket={t} />
             ))}
@@ -301,7 +296,6 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
             <GroupColumn
               groupId="__unassigned__"
               title="Unassigned"
-              subtitle="Drag cards here to ungroup"
               tickets={unassignedTickets}
               themeId={undefined}
               isUnassigned
@@ -315,7 +309,6 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
             key={theme.id}
             groupId={theme.id}
             title={theme.name}
-            subtitle={theme.description}
             tickets={(session.tickets || []).filter(t => t.themeId === theme.id)}
             themeId={theme.id}
             theme={theme}
