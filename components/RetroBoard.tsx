@@ -91,6 +91,25 @@ const RetroBoard: React.FC = () => {
         const token = localStorage.getItem('retro_token');
         socket.emit('join-session', { sessionId, user: currentUser, token });
 
+        // REST fallback: if Socket.IO fails (e.g. 503), load session data via HTTP
+        let cancelled = false;
+        const fetchSessionFallback = async () => {
+            if (!token) return;
+            try {
+                const response = await fetch(`/api/sessions/${sessionId}`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                if (response.ok && !cancelled) {
+                    const data = await response.json();
+                    // Only set session from REST if socket hasn't provided it yet
+                    setSession(prev => prev ? prev : data);
+                }
+            } catch (err) {
+                console.error('REST fallback fetch failed:', err);
+            }
+        };
+        fetchSessionFallback();
+
         // Fetch previous actions for the admin
         const fetchPreviousActions = async () => {
             if (!session?.adminId || session.adminId === 'pending') return;
@@ -107,6 +126,8 @@ const RetroBoard: React.FC = () => {
             }
         };
         fetchPreviousActions();
+
+        return () => { cancelled = true; };
     }, [currentUser?.id, sessionId, session?.adminId]);
 
     const initializePlaceholderSession = (id: string) => {

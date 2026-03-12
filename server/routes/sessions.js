@@ -77,4 +77,22 @@ router.get('/last-actions/:adminId/:currentSessionId', protect, async (req, res)
     }
 });
 
+// Get a single session by sessionId (REST fallback for when Socket.IO is unavailable)
+router.get('/:sessionId', protect, async (req, res) => {
+    try {
+        const session = await Session.findOne({
+            where: { sessionId: req.params.sessionId }
+        });
+        if (!session) {
+            return res.status(404).json({ message: 'Session not found' });
+        }
+        const sessionData = typeof session.data === 'string'
+            ? JSON.parse(session.data)
+            : session.data;
+        res.json({ ...sessionData, status: session.status });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
 export default router;

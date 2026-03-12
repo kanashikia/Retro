@@ -34,16 +34,17 @@ export const autoCloseOldSessions = async () => {
 
 /**
  * Starts the daily auto-close job.
- * Runs at 00:00 every day.
+ * Runs at 00:00 every day (Europe/Paris timezone).
+ * Also runs once on startup to catch sessions missed during container restarts.
  */
 export const startCleanupJob = () => {
-    // Run every day at midnight
+    // Run every day at midnight (Paris time)
     cron.schedule('0 0 * * *', () => {
         autoCloseOldSessions();
-    });
+    }, { timezone: 'Europe/Paris' });
 
-    console.log('[Auto-Close] Session auto-close job scheduled to run daily at 00:00.');
+    console.log('[Auto-Close] Session auto-close job scheduled to run daily at 00:00 Europe/Paris.');
 
-    // Optional: Run immediately on startup to clean up pending old sessions
-    // autoCloseOldSessions(); 
+    // Run immediately on startup to catch sessions missed during restarts
+    autoCloseOldSessions();
 };

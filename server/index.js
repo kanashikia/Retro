@@ -14,13 +14,15 @@ import Session from './models/Session.js';
 import {
     buildVisibleSessionForUser,
     applyParticipantVotingUpdate,
-    calculateFallbackAssignments
+    calculateFallbackAssignments,
+    sanitizeUser,
+    verifyAdminTokenForUser
 } from './utils/sessionHelper.js';
 
 dotenv.config();
 
 // Connect to SQL Database
-connectDB();
+await connectDB();
 import { startCleanupJob } from './services/cleanupService.js';
 startCleanupJob();
 

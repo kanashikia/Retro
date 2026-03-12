@@ -30,7 +30,9 @@ const connectDB = async () => {
         try {
             await sequelize.authenticate();
             console.log('MySQL Connection has been established successfully.');
-            await sequelize.sync({ alter: true });
+            // Use sync() without alter:true — alter causes Sequelize to rebuild all indexes
+            // on every startup which hits MySQL's 64-key limit. Run migrations manually for schema changes.
+            await sequelize.sync();
             console.log('Database synced.');
             return;
         } catch (error) {
