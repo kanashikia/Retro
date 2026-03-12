@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Smile } from 'lucide-react';
 
 interface Props {
@@ -10,10 +10,23 @@ const COMMON_EMOJIS = ['👍', '❤️', '🔥', '😮', '😂', '😢', '🚀',
 
 const ReactionPicker: React.FC<Props> = ({ onSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const [pos, setPos] = useState({ top: 0, left: 0 });
+
+    useEffect(() => {
+        if (isOpen && btnRef.current) {
+            const rect = btnRef.current.getBoundingClientRect();
+            setPos({
+                top: rect.top - 4,
+                left: rect.left
+            });
+        }
+    }, [isOpen]);
 
     return (
         <div className="relative inline-block">
             <button
+                ref={btnRef}
                 onClick={(e) => {
                     e.stopPropagation();
                     setIsOpen(!isOpen);
@@ -27,10 +40,13 @@ const ReactionPicker: React.FC<Props> = ({ onSelect }) => {
             {isOpen && (
                 <>
                     <div
-                        className="fixed inset-0 z-10"
+                        className="fixed inset-0 z-40"
                         onClick={() => setIsOpen(false)}
                     />
-                    <div className="absolute bottom-full mb-2 left-0 z-20 bg-surface border border-border p-2 rounded-xl shadow-xl flex gap-1 animate-in zoom-in-95 slide-in-from-bottom-2">
+                    <div
+                        className="fixed z-50 bg-surface border border-border p-2 rounded-xl shadow-xl flex gap-1"
+                        style={{ top: pos.top, left: pos.left, transform: 'translateY(-100%)' }}
+                    >
                         {COMMON_EMOJIS.map(emoji => (
                             <button
                                 key={emoji}

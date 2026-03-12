@@ -118,8 +118,8 @@ export const calculateFallbackAssignments = (tickets, themes, assignedTicketIds)
         if (assignedTicketIds.has(ticket.id)) return;
 
         const ticketWords = new Set(tokenize(ticket.text).filter((w) => !stopWords.has(w)));
-        let bestThemeId = themes[0]?.id;
-        let bestScore = -1;
+        let bestThemeId = null;
+        let bestScore = 0;
 
         themeLexicon.forEach(({ themeId, words }) => {
             let score = 0;
@@ -134,7 +134,7 @@ export const calculateFallbackAssignments = (tickets, themes, assignedTicketIds)
 
         newAssignments.push({
             ticketId: ticket.id,
-            themeId: bestThemeId || themes[0]?.id
+            themeId: bestThemeId || themes[0]?.id || 'misc'
         });
     });
     return newAssignments;

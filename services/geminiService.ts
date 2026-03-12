@@ -50,14 +50,23 @@ export const groupTicketsWithAI = async (socket: Socket, sessionId: string, tick
 
         const validThemeIds = new Set(formattedThemes.map((t) => t.id));
         const firstThemeId = formattedThemes[0].id || fallbackTheme.id;
+        let mappingHits = 0;
+        let mappingMisses = 0;
+
         tickets.forEach((ticket) => {
           const assignment = ticketAssignments[String(ticket.id)];
-          if (!assignment || !validThemeIds.has(assignment)) {
+          if (assignment && validThemeIds.has(assignment)) {
+            mappingHits++;
+          } else {
+            mappingMisses++;
             ticketAssignments[String(ticket.id)] = firstThemeId;
           }
         });
 
-        console.log(`[AI-Client] Grouping complete. Received ${formattedThemes.length} themes and ${Object.keys(ticketAssignments).length}/${tickets.length} specific assignments.`);
+        console.log(`[AI-Client] Grouping complete. ${formattedThemes.length} themes. Assignments: ${mappingHits} hits, ${mappingMisses} misses (fallback to ${firstThemeId})`);
+        if (mappingMisses > 0 && tickets.length > 0) {
+          console.warn("[AI-Client] Mapping Miss Sample. Ticket ID:", tickets[0].id, "Assignment:", ticketAssignments[tickets[0].id]);
+        }
 
         resolve({
           themes: formattedThemes,

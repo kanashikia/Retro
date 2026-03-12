@@ -197,7 +197,7 @@ if (!hasUsableGeminiKey) {
     console.warn('[AI] Gemini disabled: GEMINI_API_KEY is missing or placeholder. AI grouping will be unavailable.');
 } else {
     try {
-        ai = new GoogleGenAI({ apiKey: geminiApiKey });
+        ai = new GoogleGenAI({ apiKey: geminiApiKey, apiVersion: 'v1' });
         console.log('[AI] Gemini initialized.');
     } catch (error) {
         console.error('[AI] Gemini initialization failed. AI grouping will be unavailable:', error.message);
@@ -448,34 +448,44 @@ io.on('connection', (socket) => {
             if (session && (!actor.isAdmin || String(session.adminId) !== String(actor.id))) {
                 return callback({ error: 'Unauthorized' });
             }
-
             const ticketAliasData = tickets.map((t, index) => ({
                 alias: `T${index + 1}`,
                 id: t.id,
                 text: t.text,
-                originalContext: t.column
+                column: t.column
             }));
+
+            // Prepare a lightweight version for the prompt to reduce token noise
+            const promptItems = ticketAliasData.map(t => ({ alias: t.alias, text: t.text, column: t.column }));
+
+            // Dynamic max themes: scales with ticket count
+            const maxThemes = Math.min(15, Math.max(3, Math.round(Math.sqrt(tickets.length) * 1.3)));
+
             const prompt = `
-You are grouping retrospective cards into concrete, content-based themes.
+You are an expert at analyzing agile retrospective feedback cards and clustering them into meaningful, actionable themes.
 
-Rules:
-- Use the ACTUAL card content first (keywords/entities/nouns), not generic agile coaching buckets.
-- Prefer literal cluster names users would expect from their words.
-- Do NOT use abstract categories like "Challenges", "Opportunities", "Understanding", "Communication", "Process" unless cards explicitly contain those ideas.
-- If cards are sparse or simple, create direct themes (example: cards "herisson", "grenouille" => theme like "Animaux" or specific animal subgroups).
-- Create 1 to 6 themes depending on data (not forced to 3+).
-- Assign every ticketId to exactly one themeId.
-- For assignments.ticketId, you MUST use the provided ticket aliases only (T1, T2, ...), not UUIDs.
-- Theme names must be short and specific (2-5 words max).
-- Return ONLY valid JSON matching the schema.
+CONTEXT:
+These cards come from a team retrospective. Each card has:
+- "alias": a short ID like T1, T2
+- "text": the feedback written by a team member
+- "column": the column it was placed in (e.g. "What went well", "What went less well", "What do we want to try next", "What puzzles us")
 
-Items:
-${JSON.stringify(ticketAliasData)}
+The column tells you the SENTIMENT behind the card.
+
+RULES:
+1. Group cards into SPECIFIC, CONCRETE themes.
+2. DISPERSE tickets: If you see distinct topics (e.g. "Animals" vs "Vehicles"), they MUST be in different themes. Never group everything together if topics differ.
+3. Themes must have a "name" (short/specific), "description", and a unique "id".
+4. Assignments: Use the "alias" (T1, T2...) for "ticketId" and your theme's "id" for "themeId".
+5. Return ONLY valid JSON.
+
+Items (${tickets.length} cards):
+${JSON.stringify(promptItems)}
 `;
 
-            const response = await ai.models.generateContent({
+            const result = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
-                contents: prompt,
+                contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: {
                     responseMimeType: "application/json",
                     responseSchema: {
@@ -510,7 +520,7 @@ ${JSON.stringify(ticketAliasData)}
                 }
             });
 
-            const rawText = response?.text ?? response?.response?.text?.();
+            const rawText = result?.text ?? result?.response?.text?.();
             if (!rawText) {
                 console.error('[AI] Empty response from Gemini.');
                 return callback({ error: 'AI Error: Empty response from Gemini.' });
@@ -539,16 +549,16 @@ ${JSON.stringify(ticketAliasData)}
                 return withoutFence;
             };
 
-            let result;
+            let parsedJson;
             try {
-                result = JSON.parse(normalizeJsonText(rawText));
+                parsedJson = JSON.parse(normalizeJsonText(rawText));
             } catch (e) {
                 console.error('[AI] JSON Parse Error:', e.message, 'Raw Text snippet:', rawText.slice(0, 200));
                 return callback({ error: 'AI Error: Invalid JSON response.' });
             }
 
-            const rawThemes = Array.isArray(result?.themes) ? result.themes : [];
-            const rawAssignments = Array.isArray(result?.assignments) ? result.assignments : [];
+            const rawThemes = Array.isArray(parsedJson?.themes) ? parsedJson.themes : [];
+            const rawAssignments = Array.isArray(parsedJson?.assignments) ? parsedJson.assignments : [];
 
             const normalizedThemes = rawThemes.map((theme, index) => ({
                 id: `theme_${index + 1}`,
@@ -563,13 +573,19 @@ ${JSON.stringify(ticketAliasData)}
             const rawThemeToCanonical = new Map();
             rawThemes.forEach((theme, index) => {
                 const canonicalId = `theme_${index + 1}`;
-                rawThemeToCanonical.set(normalizeKey(theme?.id), canonicalId);
-                rawThemeToCanonical.set(normalizeKey(theme?.name), canonicalId);
-                // Handle various ID formats Gemini might use
+                const rawId = String(theme?.id ?? '');
+                const rawName = String(theme?.name ?? '');
+
+                // Map every possible format the AI might use for this theme
+                rawThemeToCanonical.set(rawId, canonicalId);
+                rawThemeToCanonical.set(normalizeKey(rawId), canonicalId);
+                rawThemeToCanonical.set(normalizeKey(rawName), canonicalId);
                 rawThemeToCanonical.set(String(index + 1), canonicalId);
                 rawThemeToCanonical.set(`theme${index + 1}`, canonicalId);
+                rawThemeToCanonical.set(`theme_${index + 1}`, canonicalId);
                 rawThemeToCanonical.set(`t${index + 1}`, canonicalId);
                 rawThemeToCanonical.set(`group${index + 1}`, canonicalId);
+                rawThemeToCanonical.set(`group_${index + 1}`, canonicalId);
             });
 
             const normalizeTicketId = (rawTicketId) => {
@@ -595,14 +611,31 @@ ${JSON.stringify(ticketAliasData)}
                 return null;
             };
 
+            const resolveThemeId = (rawThemeId) => {
+                const raw = String(rawThemeId ?? '').trim();
+                if (!raw) return null;
+                // Try exact match first, then normalized
+                return rawThemeToCanonical.get(raw)
+                    || rawThemeToCanonical.get(normalizeKey(raw))
+                    || null;
+            };
+
             const normalizedAssignments = [];
+            let unmatchedThemeIds = [];
             rawAssignments.forEach((assignment) => {
                 const ticketId = normalizeTicketId(assignment?.ticketId);
-                const themeId = rawThemeToCanonical.get(normalizeKey(assignment?.themeId));
+                const themeId = resolveThemeId(assignment?.themeId);
                 if (ticketId && themeId) {
                     normalizedAssignments.push({ ticketId, themeId });
+                } else {
+                    if (ticketId && !themeId) unmatchedThemeIds.push(String(assignment?.themeId));
+                    console.log(`[AI] Assignment Drop: ticketIdMatch=${!!ticketId}, themeIdMatch=${!!themeId}, rawTicketId=${assignment?.ticketId}, rawThemeId=${assignment?.themeId}`);
                 }
             });
+
+            if (unmatchedThemeIds.length > 0) {
+                console.warn(`[AI] ${unmatchedThemeIds.length} assignments had unresolvable themeIds:`, [...new Set(unmatchedThemeIds)].slice(0, 5));
+            }
 
             const assignedTicketIds = new Set(normalizedAssignments.map((a) => a.ticketId));
             const needsHeuristicFallback =
@@ -623,11 +656,11 @@ ${JSON.stringify(ticketAliasData)}
                 }
             });
         } catch (error) {
-            console.error("AI Grouping failed:", error);
+            console.error("AI Grouping failed. Full error details:", error);
             const message = String(error?.message || '');
             if (/api key|unauth|auth|401|403|invalid/i.test(message)) {
                 return callback({
-                    error: 'AI grouping unavailable: Gemini API key is not recognized by Google.'
+                    error: 'AI grouping unavailable: Gemini API key is not recognized by Google. Message: ' + message
                 });
             }
             if (/fetch failed|ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT/i.test(message)) {

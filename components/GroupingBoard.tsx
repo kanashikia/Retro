@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback } from 'react';
-import { Sparkles, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { Sparkles, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight, GripVertical, RefreshCw } from 'lucide-react';
 import { SessionState, ThemeGroup, Ticket, User } from '../types';
 import { getColumnColorClass } from '../utils/colors';
 
@@ -9,9 +9,11 @@ interface Props {
   currentUser: User;
   onUpdateSession: (s: SessionState) => void;
   onToggleReaction: (ticketId: string, emoji: string) => void;
+  onRegenerate?: () => void;
+  isRegenerating?: boolean;
 }
 
-const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onToggleReaction }) => {
+const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onToggleReaction, onRegenerate, isRegenerating }) => {
   const [isAddingTheme, setIsAddingTheme] = useState(false);
   const [newThemeName, setNewThemeName] = useState("");
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
@@ -258,6 +260,19 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
           >
             Collapse all
           </button>
+          {currentUser.isAdmin && onRegenerate && (
+            <>
+              <div className="w-px h-5 bg-border mx-1" />
+              <button
+                onClick={onRegenerate}
+                disabled={isRegenerating}
+                className="flex items-center gap-1.5 text-xs font-bold text-text-muted hover:text-primary px-3 py-1.5 rounded-lg hover:bg-secondary transition-all disabled:opacity-50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${isRegenerating ? 'animate-spin' : ''}`} />
+                {isRegenerating ? 'Regenerating...' : 'Regenerate AI'}
+              </button>
+            </>
+          )}
           <div className="w-px h-5 bg-border mx-1" />
           {!isAddingTheme ? (
             <button
