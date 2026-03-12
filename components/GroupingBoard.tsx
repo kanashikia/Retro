@@ -109,16 +109,25 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
   const unassignedTickets = (session.tickets || []).filter(t => !t.themeId);
 
-  const CompactTicket = ({ ticket }: { ticket: Ticket }) => (
-    <div
-      draggable
-      onDragStart={(e) => handleDragStart(e, ticket.id)}
-      className={`flex items-center gap-2 py-1.5 px-2.5 rounded-lg border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[13px] leading-snug group/ticket ${getColumnColorClass(ticket.column)}`}
-    >
-      <GripVertical className="w-3 h-3 text-text-muted/40 shrink-0 group-hover/ticket:text-text-muted transition-colors" />
-      <span className="truncate text-text flex-1 min-w-0">{ticket.text}</span>
-    </div>
-  );
+  const CompactTicket = ({ ticket }: { ticket: Ticket }) => {
+    const [expanded, setExpanded] = useState(false);
+    const isLong = ticket.text.length > 60;
+
+    return (
+      <div
+        draggable
+        onDragStart={(e) => handleDragStart(e, ticket.id)}
+        onClick={() => isLong && setExpanded(prev => !prev)}
+        title={ticket.text}
+        className={`flex items-start gap-2 py-1.5 px-2.5 rounded-lg border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[13px] leading-snug group/ticket ${isLong ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)}`}
+      >
+        <GripVertical className="w-3 h-3 text-text-muted/40 shrink-0 mt-0.5 group-hover/ticket:text-text-muted transition-colors" />
+        <span className={`text-text flex-1 min-w-0 ${expanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>
+          {ticket.text}
+        </span>
+      </div>
+    );
+  };
 
   const GroupColumn = ({
     groupId,
