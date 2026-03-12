@@ -1,10 +1,8 @@
 
-import React from 'react';
-import { Sparkles, Plus, Trash2, Edit2, Check, X } from 'lucide-react';
-import { SessionState, ThemeGroup, User } from '../types';
+import React, { useState, useCallback } from 'react';
+import { Sparkles, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
+import { SessionState, ThemeGroup, Ticket, User } from '../types';
 import { getColumnColorClass } from '../utils/colors';
-import ReactionBadge from './ReactionBadge';
-import ReactionPicker from './ReactionPicker';
 
 interface Props {
   session: SessionState;
@@ -14,17 +12,19 @@ interface Props {
 }
 
 const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onToggleReaction }) => {
-  const [isAddingTheme, setIsAddingTheme] = React.useState(false);
-  const [newThemeName, setNewThemeName] = React.useState("");
-  const [editingThemeId, setEditingThemeId] = React.useState<string | null>(null);
-  const [editThemeName, setEditThemeName] = React.useState("");
+  const [isAddingTheme, setIsAddingTheme] = useState(false);
+  const [newThemeName, setNewThemeName] = useState("");
+  const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
+  const [editThemeName, setEditThemeName] = useState("");
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
+  const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
 
-  const moveTicket = (ticketId: string, themeId: string | undefined) => {
+  const moveTicket = useCallback((ticketId: string, themeId: string | undefined) => {
     onUpdateSession({
       ...session,
       tickets: (session.tickets || []).map(t => t.id === ticketId ? { ...t, themeId } : t)
     });
-  };
+  }, [session, onUpdateSession]);
 
   const addTheme = () => {
     if (!newThemeName.trim()) return;
@@ -65,139 +65,256 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
     setEditingThemeId(null);
   };
 
+  const toggleCollapse = (groupId: string) => {
+    setCollapsedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) next.delete(groupId);
+      else next.add(groupId);
+      return next;
+    });
+  };
+
+  const collapseAll = () => {
+    const allIds = new Set<string>();
+    allIds.add('__unassigned__');
+    (session.themes || []).forEach(t => allIds.add(t.id));
+    setCollapsedGroups(allIds);
+  };
+
+  const expandAll = () => {
+    setCollapsedGroups(new Set());
+  };
+
+  const handleDragOver = useCallback((e: React.DragEvent, groupId: string) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+    setDragOverGroupId(groupId);
+  }, []);
+
+  const handleDragLeave = useCallback(() => {
+    setDragOverGroupId(null);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent, themeId: string | undefined) => {
+    e.preventDefault();
+    const tid = e.dataTransfer.getData("tid");
+    if (tid) moveTicket(tid, themeId);
+    setDragOverGroupId(null);
+  }, [moveTicket]);
+
+  const handleDragStart = useCallback((e: React.DragEvent, ticketId: string) => {
+    e.dataTransfer.setData("tid", ticketId);
+    e.dataTransfer.effectAllowed = 'move';
+  }, []);
+
   const unassignedTickets = (session.tickets || []).filter(t => !t.themeId);
 
-  return (
-    <div className="space-y-10 max-w-7xl mx-auto pb-20">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 bg-surface p-6 rounded-2xl border border-border shadow-sm">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 bg-secondary rounded-xl flex items-center justify-center"><Sparkles className="w-7 h-7 text-primary" /></div>
-          <div>
-            <h2 className="text-3xl font-black text-text leading-tight">Theme Grouping</h2>
-            <p className="text-base text-text-muted">The AI has organized your feedback. You can also manually add groups and move cards.</p>
+  const CompactTicket = ({ ticket }: { ticket: Ticket }) => (
+    <div
+      draggable
+      onDragStart={(e) => handleDragStart(e, ticket.id)}
+      className={`flex items-center gap-2 py-1.5 px-2.5 rounded-lg border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[13px] leading-snug group/ticket ${getColumnColorClass(ticket.column)}`}
+    >
+      <GripVertical className="w-3 h-3 text-text-muted/40 shrink-0 group-hover/ticket:text-text-muted transition-colors" />
+      <span className="truncate text-text flex-1 min-w-0">{ticket.text}</span>
+    </div>
+  );
+
+  const GroupColumn = ({
+    groupId,
+    title,
+    subtitle,
+    tickets,
+    themeId,
+    isUnassigned = false,
+    theme
+  }: {
+    groupId: string;
+    title: string;
+    subtitle?: string;
+    tickets: Ticket[];
+    themeId: string | undefined;
+    isUnassigned?: boolean;
+    theme?: ThemeGroup;
+  }) => {
+    const isCollapsed = collapsedGroups.has(groupId);
+    const isDragOver = dragOverGroupId === groupId;
+
+    return (
+      <div
+        className={`flex flex-col rounded-2xl border-2 transition-all duration-200 shrink-0 ${
+          isUnassigned
+            ? 'bg-secondary/20 border-dashed border-border min-w-[240px] w-[240px]'
+            : 'bg-surface border-border min-w-[260px] w-[260px]'
+        } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} ${
+          isCollapsed ? 'h-fit' : 'h-[calc(100vh-220px)]'
+        }`}
+        onDragOver={(e) => handleDragOver(e, groupId)}
+        onDragLeave={handleDragLeave}
+        onDrop={(e) => handleDrop(e, themeId)}
+      >
+        {/* Header — always visible, acts as drop target */}
+        <div
+          className={`flex items-center gap-2 px-4 py-3 border-b border-border cursor-pointer select-none shrink-0 ${
+            isDragOver ? 'bg-primary/10' : ''
+          }`}
+          onClick={() => toggleCollapse(groupId)}
+        >
+          {isCollapsed
+            ? <ChevronRight className="w-4 h-4 text-text-muted shrink-0" />
+            : <ChevronDown className="w-4 h-4 text-text-muted shrink-0" />
+          }
+          <div className="flex-1 min-w-0">
+            {editingThemeId === theme?.id ? (
+              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+                <input
+                  autoFocus
+                  value={editThemeName}
+                  onChange={(e) => setEditThemeName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') saveThemeName(); }}
+                  className="w-full text-sm font-bold text-text bg-background rounded px-2 py-0.5 outline-none"
+                />
+                <button onClick={saveThemeName} className="text-green-500 hover:text-green-600 shrink-0">
+                  <Check className="w-4 h-4" />
+                </button>
+              </div>
+            ) : (
+              <h3 className="font-bold text-sm text-text truncate">{title}</h3>
+            )}
+            {subtitle && !isCollapsed && (
+              <p className="text-[11px] text-text-muted truncate mt-0.5">{subtitle}</p>
+            )}
           </div>
+          <span className={`text-[11px] font-black px-2 py-0.5 rounded-full shrink-0 ${
+            tickets.length > 0
+              ? 'bg-primary/15 text-primary'
+              : 'bg-secondary text-text-muted'
+          }`}>
+            {tickets.length}
+          </span>
+          {theme && !isCollapsed && (
+            <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => startEditing(theme)}
+                className="p-1 text-text-muted hover:text-text hover:bg-secondary rounded transition-all"
+              >
+                <Edit2 className="w-3.5 h-3.5" />
+              </button>
+              <button
+                onClick={() => deleteTheme(theme.id)}
+                className="p-1 text-text-muted hover:text-red-500 hover:bg-red-50 rounded transition-all"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
-        {!isAddingTheme ? (
-          <button
-            onClick={() => setIsAddingTheme(true)}
-            className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-6 py-3 rounded-xl font-bold transition-all shadow-md active:scale-95"
-          >
-            <Plus className="w-5 h-5" />
-            Add Group
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
-            <input
-              autoFocus
-              value={newThemeName}
-              onChange={(e) => setNewThemeName(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && addTheme()}
-              placeholder="Group name..."
-              className="px-4 py-2 border-2 border-border rounded-xl focus:border-primary outline-none transition-all text-text bg-background"
-            />
-            <button onClick={addTheme} className="p-2 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors"><Check className="w-5 h-5" /></button>
-            <button onClick={() => setIsAddingTheme(false)} className="p-2 bg-secondary text-text-muted rounded-lg hover:bg-border transition-colors"><X className="w-5 h-5" /></button>
+        {/* Ticket list — scrollable */}
+        {!isCollapsed && (
+          <div className="flex-1 overflow-y-auto p-3 space-y-1.5 min-h-0">
+            {tickets.map(t => (
+              <CompactTicket key={t.id} ticket={t} />
+            ))}
+            {tickets.length === 0 && (
+              <div className="flex-1 flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl p-4 min-h-[80px]">
+                <span className="text-text-muted/40 font-bold uppercase tracking-widest text-[10px]">
+                  Drop here
+                </span>
+              </div>
+            )}
           </div>
         )}
       </div>
+    );
+  };
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+  return (
+    <div className="space-y-4 pb-4">
+      {/* Toolbar */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 rounded-2xl border border-border shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center shrink-0">
+            <Sparkles className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-xl font-black text-text leading-tight">Theme Grouping</h2>
+            <p className="text-xs text-text-muted">
+              {(session.tickets || []).length} tickets · {(session.themes || []).length} groups
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <button
+            onClick={expandAll}
+            className="text-xs font-bold text-text-muted hover:text-text px-3 py-1.5 rounded-lg hover:bg-secondary transition-all"
+          >
+            Expand all
+          </button>
+          <button
+            onClick={collapseAll}
+            className="text-xs font-bold text-text-muted hover:text-text px-3 py-1.5 rounded-lg hover:bg-secondary transition-all"
+          >
+            Collapse all
+          </button>
+          <div className="w-px h-5 bg-border mx-1" />
+          {!isAddingTheme ? (
+            <button
+              onClick={() => setIsAddingTheme(true)}
+              className="flex items-center gap-1.5 bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-xl text-sm font-bold transition-all shadow-sm active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              Add Group
+            </button>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <input
+                autoFocus
+                value={newThemeName}
+                onChange={(e) => setNewThemeName(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && addTheme()}
+                placeholder="Group name..."
+                className="px-3 py-1.5 border-2 border-border rounded-lg focus:border-primary outline-none transition-all text-sm text-text bg-background w-36"
+              />
+              <button onClick={addTheme} className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
+                <Check className="w-4 h-4" />
+              </button>
+              <button onClick={() => setIsAddingTheme(false)} className="p-1.5 bg-secondary text-text-muted rounded-lg hover:bg-border transition-colors">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Horizontal scrollable columns */}
+      <div className="flex gap-3 overflow-x-auto pb-4 scroll-smooth" style={{ scrollbarWidth: 'thin' }}>
+        {/* Unassigned — sticky first column */}
         {unassignedTickets.length > 0 && (
-          <div className="bg-secondary/30 rounded-3xl border-2 border-dashed border-border p-8 space-y-6 min-h-[300px] flex flex-col"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { const tid = e.dataTransfer.getData("tid"); if (tid) moveTicket(tid, undefined); }}>
-            <div className="pb-4 border-b border-border">
-              <h3 className="font-black text-2xl text-text-muted capitalize">Unassigned Tickets</h3>
-              <p className="text-sm text-text-muted font-medium">Drag cards here to ungroup them</p>
-            </div>
-            <div className="flex flex-col gap-3 flex-1">
-              {unassignedTickets.map(t => (
-                <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
-                  className={`bg-surface p-4 rounded-xl border-2 text-sm md:text-base text-text cursor-grab active:cursor-grabbing hover:border-primary/50 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
-                  <p className="break-words min-w-0">{t.text}</p>
-                  {(t.reactions && Object.keys(t.reactions).length > 0) && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {Object.entries(t.reactions).map(([emoji, userIds]) => (
-                        <ReactionBadge
-                          key={emoji}
-                          emoji={emoji}
-                          userIds={userIds}
-                          currentUserId={currentUser.id}
-                          onToggle={(e) => onToggleReaction(t.id, e)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-2">
-                    <ReactionPicker onSelect={(emoji) => onToggleReaction(t.id, emoji)} />
-                  </div>
-                </div>
-              ))}
-            </div>
+          <div className="sticky left-0 z-10">
+            <GroupColumn
+              groupId="__unassigned__"
+              title="Unassigned"
+              subtitle="Drag cards here to ungroup"
+              tickets={unassignedTickets}
+              themeId={undefined}
+              isUnassigned
+            />
           </div>
         )}
 
+        {/* Theme columns */}
         {(session.themes || []).map(theme => (
-          <div key={theme.id} className="bg-surface rounded-3xl border-2 border-border shadow-sm p-8 space-y-6 min-h-[300px] flex flex-col hover:border-primary/20 transition-colors relative group"
-            onDragOver={(e) => e.preventDefault()}
-            onDrop={(e) => { const tid = e.dataTransfer.getData("tid"); if (tid) moveTicket(tid, theme.id); }}>
-
-            <div className="pb-4 border-b border-border space-y-2">
-              <div className="flex items-center justify-between gap-2">
-                {editingThemeId === theme.id ? (
-                  <div className="flex items-center gap-2 flex-1">
-                    <input
-                      autoFocus
-                      value={editThemeName}
-                      onChange={(e) => setEditThemeName(e.target.value)}
-                      onKeyDown={(e) => e.key === 'Enter' && saveThemeName()}
-                      className="w-full text-xl font-black text-text bg-background rounded px-2 py-1 outline-none"
-                    />
-                    <button onClick={saveThemeName} className="text-green-500 hover:text-green-600"><Check className="w-5 h-5" /></button>
-                  </div>
-                ) : (
-                  <h3 className="font-black text-2xl text-text flex-1 break-words">{theme.name}</h3>
-                )}
-
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <button onClick={() => startEditing(theme)} className="p-1.5 text-text-muted hover:text-text hover:bg-secondary rounded-lg transition-all"><Edit2 className="w-4 h-4" /></button>
-                  <button onClick={() => deleteTheme(theme.id)} className="p-1.5 text-text-muted hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"><Trash2 className="w-4 h-4" /></button>
-                </div>
-              </div>
-              <p className="text-sm text-text-muted font-medium leading-relaxed break-words">{theme.description}</p>
-            </div>
-
-            <div className="flex flex-col gap-3 flex-1">
-              {(session.tickets || []).filter(t => t.themeId === theme.id).map(t => (
-                <div key={t.id} draggable onDragStart={(e) => e.dataTransfer.setData("tid", t.id)}
-                  className={`bg-ticket-bg p-4 rounded-xl border-2 text-sm md:text-base text-text cursor-grab active:cursor-grabbing hover:bg-surface hover:border-primary/50 transition-all shadow-sm ${getColumnColorClass(t.column)}`}>
-                  <p className="break-words min-w-0">{t.text}</p>
-                  {(t.reactions && Object.keys(t.reactions).length > 0) && (
-                    <div className="mt-2 flex flex-wrap gap-1">
-                      {Object.entries(t.reactions).map(([emoji, userIds]) => (
-                        <ReactionBadge
-                          key={emoji}
-                          emoji={emoji}
-                          userIds={userIds}
-                          currentUserId={currentUser.id}
-                          onToggle={(e) => onToggleReaction(t.id, e)}
-                        />
-                      ))}
-                    </div>
-                  )}
-                  <div className="mt-2">
-                    <ReactionPicker onSelect={(emoji) => onToggleReaction(t.id, emoji)} />
-                  </div>
-                </div>
-              ))}
-              {(session.tickets || []).filter(t => t.themeId === theme.id).length === 0 && (
-                <div className="flex-1 flex items-center justify-center border-2 border-dashed border-border rounded-2xl p-6">
-                  <span className="text-text-muted/50 font-bold uppercase tracking-widest text-xs">Drop a card here</span>
-                </div>
-              )}
-            </div>
-          </div>
+          <GroupColumn
+            key={theme.id}
+            groupId={theme.id}
+            title={theme.name}
+            subtitle={theme.description}
+            tickets={(session.tickets || []).filter(t => t.themeId === theme.id)}
+            themeId={theme.id}
+            theme={theme}
+          />
         ))}
       </div>
     </div>
