@@ -111,7 +111,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
   const CompactTicket = ({ ticket }: { ticket: Ticket }) => {
     const [expanded, setExpanded] = useState(false);
-    const isLong = ticket.text.length > 60;
+    const isLong = ticket.text.length > 25;
 
     return (
       <div
@@ -151,22 +151,19 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
     return (
       <div
-        className={`flex flex-col rounded-2xl border-2 transition-all duration-200 shrink-0 ${
-          isUnassigned
-            ? 'bg-secondary/20 border-dashed border-border min-w-[240px] w-[240px]'
-            : 'bg-surface border-border min-w-[260px] w-[260px]'
-        } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} ${
-          isCollapsed ? 'h-fit' : 'h-[calc(100vh-220px)]'
-        }`}
+        className={`flex flex-col rounded-2xl border-2 transition-all duration-200 shrink-0 ${isUnassigned
+          ? 'bg-secondary/20 border-dashed border-border min-w-[240px] w-[240px]'
+          : 'bg-surface border-border min-w-[260px] w-[260px]'
+          } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} ${isCollapsed ? 'h-fit' : 'h-[calc(100vh-220px)]'
+          }`}
         onDragOver={(e) => handleDragOver(e, groupId)}
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, themeId)}
       >
         {/* Header — always visible, acts as drop target */}
         <div
-          className={`flex items-center gap-2 px-4 py-3 border-b border-border cursor-pointer select-none shrink-0 ${
-            isDragOver ? 'bg-primary/10' : ''
-          }`}
+          className={`flex items-center gap-2 px-4 py-3 border-b border-border cursor-pointer select-none shrink-0 ${isDragOver ? 'bg-primary/10' : ''
+            }`}
           onClick={() => toggleCollapse(groupId)}
         >
           {isCollapsed
@@ -194,11 +191,10 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
               <p className="text-[11px] text-text-muted truncate mt-0.5">{subtitle}</p>
             )}
           </div>
-          <span className={`text-[11px] font-black px-2 py-0.5 rounded-full shrink-0 ${
-            tickets.length > 0
-              ? 'bg-primary/15 text-primary'
-              : 'bg-secondary text-text-muted'
-          }`}>
+          <span className={`text-[11px] font-black px-2 py-0.5 rounded-full shrink-0 ${tickets.length > 0
+            ? 'bg-primary/15 text-primary'
+            : 'bg-secondary text-text-muted'
+            }`}>
             {tickets.length}
           </span>
           {theme && !isCollapsed && (
