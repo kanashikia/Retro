@@ -154,7 +154,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
         className={`flex flex-col rounded-xl border-2 transition-all duration-200 shrink-0 ${isUnassigned
           ? 'bg-secondary/20 border-dashed border-border min-w-[160px] w-[160px]'
           : 'bg-surface border-border min-w-[170px] w-[170px]'
-          } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} ${isCollapsed ? 'h-fit' : 'h-[calc(100vh-220px)]'
+          } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} ${isCollapsed ? 'h-fit' : 'h-[min(420px,calc(100vh-250px))]'
           }`}
         onDragOver={(e) => handleDragOver(e, groupId)}
         onDragLeave={handleDragLeave}
@@ -303,19 +303,17 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
         </div>
       </div>
 
-      {/* Horizontal scrollable columns */}
-      <div className="flex gap-3 overflow-x-auto pb-4 scroll-smooth" style={{ scrollbarWidth: 'thin' }}>
-        {/* Unassigned — sticky first column */}
+      {/* Wrapping columns */}
+      <div className="flex flex-wrap gap-4 pb-4">
+        {/* Unassigned */}
         {unassignedTickets.length > 0 && (
-          <div className="sticky left-0 z-10">
-            <GroupColumn
-              groupId="__unassigned__"
-              title="Unassigned"
-              tickets={unassignedTickets}
-              themeId={undefined}
-              isUnassigned
-            />
-          </div>
+          <GroupColumn
+            groupId="__unassigned__"
+            title="Unassigned"
+            tickets={unassignedTickets}
+            themeId={undefined}
+            isUnassigned
+          />
         )}
 
         {/* Theme columns */}
