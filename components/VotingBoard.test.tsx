@@ -37,7 +37,7 @@ describe('VotingBoard', () => {
             />
         );
 
-        expect(screen.getByText('You have 3 votes left')).toBeDefined();
+        expect(screen.getByText('3 votes left')).toBeDefined();
     });
 
     it('calls onUpdateSession and onUpdateUser when voting', () => {
@@ -56,10 +56,33 @@ describe('VotingBoard', () => {
             />
         );
 
-        fireEvent.click(screen.getByText('Vote for this group'));
+        fireEvent.click(screen.getByText('Vote'));
 
         expect(onUpdateSession).toHaveBeenCalled();
         expect(onUpdateUser).toHaveBeenCalledWith(expect.objectContaining({ votesRemaining: 2 }));
+    });
+
+    it('calls onUpdateSession and onUpdateUser when removing a vote', () => {
+        const currentUser = { id: 'user1', name: 'User 1', isAdmin: false, votesRemaining: 3 };
+        const onUpdateSession = vi.fn();
+        const onUpdateUser = vi.fn();
+
+        render(
+            <VotingBoard
+                session={mockSession as any}
+                currentUser={currentUser as any}
+                participants={participants as any}
+                onUpdateSession={onUpdateSession}
+                onUpdateUser={onUpdateUser}
+                onToggleReaction={vi.fn()}
+            />
+        );
+
+        const removeButton = screen.getByTitle('Remove a vote');
+        fireEvent.click(removeButton);
+
+        expect(onUpdateSession).toHaveBeenCalled();
+        expect(onUpdateUser).toHaveBeenCalledWith(expect.objectContaining({ votesRemaining: 4 }));
     });
 
     it('disables vote button when 0 votes left', () => {
@@ -75,7 +98,7 @@ describe('VotingBoard', () => {
             />
         );
 
-        const button = screen.getByText('Vote for this group').closest('button');
+        const button = screen.getByText('Vote').closest('button');
         expect(button?.disabled).toBe(true);
     });
 
@@ -92,7 +115,7 @@ describe('VotingBoard', () => {
             />
         );
 
-        expect(screen.getByText('Participants Voting Status')).toBeDefined();
+        expect(screen.getByText('Voting Status')).toBeDefined();
         expect(screen.getByText('User 1')).toBeDefined();
     });
 });

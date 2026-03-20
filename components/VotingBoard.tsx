@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Vote, Plus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Vote, Plus, Minus, ChevronDown, ChevronRight } from 'lucide-react';
 import { SessionState, User } from '../types';
 import { getColumnColorClass } from '../utils/colors';
 import ReactionBadge from './ReactionBadge';
@@ -36,6 +36,28 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
     });
 
     onUpdateUser({ ...currentUser, votesRemaining: currentUser.votesRemaining - 1 });
+  };
+
+  const handleRemoveVote = (themeId: string) => {
+    const theme = (session.themes || []).find(t => t.id === themeId);
+    if (!theme) return;
+
+    const userVoteIndex = (theme.voterIds || []).lastIndexOf(currentUser.id);
+    if (userVoteIndex === -1) return;
+
+    const newVoterIds = [...theme.voterIds];
+    newVoterIds.splice(userVoteIndex, 1);
+
+    onUpdateSession({
+      ...session,
+      themes: (session.themes || []).map(t => t.id === themeId ? {
+        ...t,
+        votes: Math.max(0, t.votes - 1),
+        voterIds: newVoterIds
+      } : t)
+    });
+
+    onUpdateUser({ ...currentUser, votesRemaining: currentUser.votesRemaining + 1 });
   };
 
   const toggleThemeExpand = (themeId: string) => {
@@ -175,14 +197,25 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
                 </div>
               )}
 
-              {/* Vote button */}
-              <button
-                disabled={currentUser.votesRemaining <= 0}
-                onClick={() => handleVote(theme.id)}
-                className="w-full mt-auto py-2 bg-primary hover:bg-primary-hover text-white rounded-lg font-bold text-[12px] transition-all shadow-sm active:scale-[0.97] disabled:opacity-20 flex items-center justify-center gap-1.5"
-              >
-                <Plus className="w-3.5 h-3.5" /> Vote
-              </button>
+              {/* Vote buttons */}
+              <div className="flex gap-2 mt-auto">
+                {userVotes > 0 && (
+                  <button
+                    onClick={() => handleRemoveVote(theme.id)}
+                    className="p-2 bg-secondary hover:bg-secondary-hover text-text rounded-lg transition-all shadow-sm active:scale-[0.97]"
+                    title="Remove a vote"
+                  >
+                    <Minus className="w-4 h-4" />
+                  </button>
+                )}
+                <button
+                  disabled={currentUser.votesRemaining <= 0}
+                  onClick={() => handleVote(theme.id)}
+                  className="flex-1 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg font-bold text-[12px] transition-all shadow-sm active:scale-[0.97] disabled:opacity-20 flex items-center justify-center gap-1.5"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Vote
+                </button>
+              </div>
             </div>
           );
         })}

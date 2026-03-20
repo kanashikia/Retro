@@ -56,29 +56,45 @@ export const applyParticipantVotingUpdate = (existingData, incomingData, actorId
         return acc + voterIds.filter((id) => String(id) === String(actorId)).length;
     }, 0);
 
-    if (actorVotesUsed >= maxVotesPerUser) {
-        return { ...existingData };
-    }
-
     const incomingById = new Map(incomingThemes.map((theme) => [theme?.id, theme]));
-    let voteApplied = false;
+    let updateApplied = false;
 
     const themes = existingThemes.map((theme) => {
         const source = incomingById.get(theme.id);
+        if (!source) return theme;
+
         const existingVoterIds = Array.isArray(theme.voterIds) ? theme.voterIds : [];
-        const incomingVoterIds = Array.isArray(source?.voterIds) ? source.voterIds : [];
+        const incomingVoterIds = Array.isArray(source.voterIds) ? source.voterIds : [];
 
         const existingActorVotes = existingVoterIds.filter((id) => String(id) === String(actorId)).length;
         const incomingActorVotes = incomingVoterIds.filter((id) => String(id) === String(actorId)).length;
-        const wantsAnotherVote = incomingActorVotes > existingActorVotes;
 
-        if (!voteApplied && wantsAnotherVote) {
-            voteApplied = true;
-            return {
-                ...theme,
-                votes: Number(theme.votes || 0) + 1,
-                voterIds: [...existingVoterIds, actorId]
-            };
+        // If user wants to add a vote
+        if (incomingActorVotes > existingActorVotes) {
+            if (!updateApplied && actorVotesUsed < maxVotesPerUser) {
+                updateApplied = true;
+                return {
+                    ...theme,
+                    votes: Number(theme.votes || 0) + 1,
+                    voterIds: [...existingVoterIds, actorId]
+                };
+            }
+        }
+        // If user wants to remove a vote
+        else if (incomingActorVotes < existingActorVotes) {
+            if (!updateApplied) {
+                updateApplied = true;
+                const newVoterIds = [...existingVoterIds];
+                const lastIdx = newVoterIds.lastIndexOf(actorId);
+                if (lastIdx !== -1) {
+                    newVoterIds.splice(lastIdx, 1);
+                    return {
+                        ...theme,
+                        votes: Math.max(0, Number(theme.votes || 0) - 1),
+                        voterIds: newVoterIds
+                    };
+                }
+            }
         }
 
         return theme;

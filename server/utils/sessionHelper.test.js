@@ -106,7 +106,7 @@ describe('sessionHelper', () => {
             };
             const incomingData = {
                 themes: [
-                    { id: 'theme1', voterIds: ['user1'] }
+                    { id: 'theme1', voterIds: ['other_user', 'user1'] }
                 ]
             };
             const result = helper.applyParticipantVotingUpdate(existingData, incomingData, 'user1');
@@ -128,6 +128,41 @@ describe('sessionHelper', () => {
             };
             const result = helper.applyParticipantVotingUpdate(existingData, incomingData, 'user1');
             expect(result.themes[0].votes).toBe(1); // Not increased
+        });
+
+        it('should remove a vote if user wants to', () => {
+            process.env.MAX_VOTES_PER_USER = '5';
+            const existingData = {
+                themes: [
+                    { id: 'theme1', votes: 2, voterIds: ['user1', 'other_user'] }
+                ]
+            };
+            const incomingData = {
+                themes: [
+                    { id: 'theme1', voterIds: ['other_user'] }
+                ]
+            };
+            const result = helper.applyParticipantVotingUpdate(existingData, incomingData, 'user1');
+            expect(result.themes[0].votes).toBe(1);
+            expect(result.themes[0].voterIds).not.toContain('user1');
+            expect(result.themes[0].voterIds).toContain('other_user');
+        });
+
+        it('should allow removing a vote even if user reached max votes', () => {
+            process.env.MAX_VOTES_PER_USER = '1';
+            const existingData = {
+                themes: [
+                    { id: 'theme1', votes: 1, voterIds: ['user1'] }
+                ]
+            };
+            const incomingData = {
+                themes: [
+                    { id: 'theme1', voterIds: [] }
+                ]
+            };
+            const result = helper.applyParticipantVotingUpdate(existingData, incomingData, 'user1');
+            expect(result.themes[0].votes).toBe(0);
+            expect(result.themes[0].voterIds).not.toContain('user1');
         });
     });
 
