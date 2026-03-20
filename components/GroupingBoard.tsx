@@ -185,7 +185,16 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
                 </button>
               </div>
             ) : (
-              <h3 className="font-bold text-[11px] text-text truncate" title={title}>{title}</h3>
+              <div className="relative group/tooltip flex-1 min-w-0">
+                <h3 className="font-bold text-[11px] text-text truncate">
+                  {title}
+                </h3>
+                {/* Custom Tooltip */}
+                <div className="absolute left-0 top-full mt-1 w-max max-w-[250px] bg-gray-900 text-white text-[10px] p-2 rounded shadow-xl opacity-0 invisible group-hover/tooltip:opacity-100 group-hover/tooltip:visible transition-all z-50 pointer-events-none break-words leading-tight border border-white/10">
+                  {title}
+                  <div className="absolute -top-1 left-4 w-2 h-2 bg-gray-900 rotate-45 border-t border-l border-white/10"></div>
+                </div>
+              </div>
             )}
           </div>
           <span className={`text-[10px] font-black px-1.5 py-0.5 rounded-full shrink-0 ${tickets.length > 0
