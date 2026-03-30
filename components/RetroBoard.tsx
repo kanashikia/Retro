@@ -238,8 +238,9 @@ const RetroBoard: React.FC = () => {
 
     let votesUsed = 0;
     try {
+        const currentUserId = String(currentUser?.id || '');
         votesUsed = (session?.themes || []).reduce((acc, theme) =>
-            acc + (theme?.voterIds?.filter(id => id === currentUser?.id)?.length || 0), 0);
+            acc + (theme?.voterIds?.filter(id => String(id) === currentUserId)?.length || 0), 0);
     } catch (e) {
         console.error("Defensive catch in votesUsed:", e);
     }

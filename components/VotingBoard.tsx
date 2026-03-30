@@ -17,22 +17,23 @@ interface Props {
 
 const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUpdateSession, onUpdateUser, onToggleReaction }) => {
   const [expandedThemes, setExpandedThemes] = useState<Set<string>>(new Set());
+  const currentUserId = String(currentUser.id);
 
   const getVotesForUser = (userId: string) => {
     return (session.themes || []).reduce((acc, theme) =>
-      acc + (theme.voterIds?.filter(id => id === userId).length || 0), 0);
+      acc + (theme.voterIds?.filter(id => String(id) === String(userId)).length || 0), 0);
   };
 
   const handleVote = (themeId: string) => {
     if (currentUser.votesRemaining <= 0) return;
 
     onUpdateSession({
-      ...session,
-      themes: (session.themes || []).map(t => t.id === themeId ? {
-        ...t,
-        votes: t.votes + 1,
-        voterIds: [...t.voterIds, currentUser.id]
-      } : t)
+        ...session,
+        themes: (session.themes || []).map(t => t.id === themeId ? {
+          ...t,
+          votes: t.votes + 1,
+          voterIds: [...t.voterIds, currentUserId]
+        } : t)
     });
 
     onUpdateUser({ ...currentUser, votesRemaining: currentUser.votesRemaining - 1 });
@@ -42,7 +43,7 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
     const theme = (session.themes || []).find(t => t.id === themeId);
     if (!theme) return;
 
-    const userVoteIndex = (theme.voterIds || []).lastIndexOf(currentUser.id);
+    const userVoteIndex = (theme.voterIds || []).findLastIndex(id => String(id) === currentUserId);
     if (userVoteIndex === -1) return;
 
     const newVoterIds = [...theme.voterIds];
@@ -132,9 +133,9 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
       )}
 
       {/* Theme cards grid — optimized for density */}
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
         {(session.themes || []).map(theme => {
-          const userVotes = theme.voterIds.filter(id => id === currentUser.id).length;
+          const userVotes = theme.voterIds.filter(id => String(id) === currentUserId).length;
           const hasVoted = userVotes > 0;
           const themeTickets = (session.tickets || []).filter(t => t.themeId === theme.id);
           const isExpanded = expandedThemes.has(theme.id);

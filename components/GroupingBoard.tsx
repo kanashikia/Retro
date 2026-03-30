@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect, useRef } from 'react';
 import { Sparkles, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight, GripVertical, RefreshCw } from 'lucide-react';
 import { SessionState, ThemeGroup, Ticket, User } from '../types';
 import { getColumnColorClass } from '../utils/colors';
@@ -113,18 +113,39 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
   const CompactTicket = ({ ticket }: { ticket: Ticket }) => {
     const [expanded, setExpanded] = useState(false);
-    const isLong = ticket.text.length > 25;
+    const [isTruncated, setIsTruncated] = useState(false);
+    const textRef = useRef<HTMLSpanElement | null>(null);
+
+    useEffect(() => {
+      const element = textRef.current;
+      if (!element) return;
+
+      const updateTruncation = () => {
+        setIsTruncated(element.scrollWidth > element.clientWidth);
+      };
+
+      updateTruncation();
+
+      if (typeof ResizeObserver === 'undefined') return;
+      const observer = new ResizeObserver(updateTruncation);
+      observer.observe(element);
+
+      return () => observer.disconnect();
+    }, [ticket.text, expanded]);
 
     return (
       <div
         draggable
         onDragStart={(e) => handleDragStart(e, ticket.id)}
-        onClick={() => isLong && setExpanded(prev => !prev)}
+        onClick={() => isTruncated && setExpanded(prev => !prev)}
         title={ticket.text}
-        className={`flex items-start gap-1.5 py-1 px-2 rounded-md border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[12px] leading-snug group/ticket ${isLong ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)}`}
+        className={`flex items-start gap-1.5 py-1 px-2 rounded-md border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[12px] leading-snug group/ticket ${isTruncated ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)}`}
       >
         <GripVertical className="w-2.5 h-2.5 text-text-muted/40 shrink-0 mt-0.5 group-hover/ticket:text-text-muted transition-colors" />
-        <span className={`text-text flex-1 min-w-0 ${expanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}>
+        <span
+          ref={textRef}
+          className={`text-text flex-1 min-w-0 ${expanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}
+        >
           {ticket.text}
         </span>
       </div>
@@ -154,8 +175,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
         className={`flex flex-col rounded-xl border-2 transition-all duration-200 shrink-0 ${isUnassigned
           ? 'bg-secondary/20 border-dashed border-border min-w-[160px] w-[160px]'
           : 'bg-surface border-border min-w-[170px] w-[170px]'
-          } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} ${isCollapsed ? 'h-fit' : 'h-[min(420px,calc(100vh-250px))]'
-          }`}
+          } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} self-start h-fit`}
         onDragOver={(e) => handleDragOver(e, groupId)}
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, themeId)}
@@ -223,12 +243,12 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
         {/* Ticket list — scrollable */}
         {!isCollapsed && (
-          <div className="flex-1 overflow-y-auto p-2 space-y-1 min-h-0">
+          <div className="p-2 space-y-1 max-h-[min(320px,calc(100vh-320px))] overflow-y-auto">
             {tickets.map(t => (
               <CompactTicket key={t.id} ticket={t} />
             ))}
             {tickets.length === 0 && (
-              <div className="flex-1 flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl p-4 min-h-[80px]">
+              <div className="flex items-center justify-center border-2 border-dashed border-border/50 rounded-xl p-4 min-h-[80px]">
                 <span className="text-text-muted/40 font-bold uppercase tracking-widest text-[10px]">
                   Drop here
                 </span>
@@ -313,7 +333,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
       </div>
 
       {/* Wrapping columns */}
-      <div className="flex flex-wrap gap-4 pb-4">
+      <div className="flex flex-wrap items-start gap-4 pb-4">
         {/* Unassigned */}
         {unassignedTickets.length > 0 && (
           <GroupColumn
