@@ -13,6 +13,13 @@ interface Props {
   isRegenerating?: boolean;
 }
 
+const getGroupMinWidth = (groupCount: number) => {
+  if (groupCount <= 2) return 320;
+  if (groupCount <= 4) return 280;
+  if (groupCount <= 6) return 240;
+  return 210;
+};
+
 const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onToggleReaction, onRegenerate, isRegenerating }) => {
   const [isAddingTheme, setIsAddingTheme] = useState(false);
   const [newThemeName, setNewThemeName] = useState("");
@@ -110,6 +117,8 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
   }, []);
 
   const unassignedTickets = (session.tickets || []).filter(t => !t.themeId);
+  const totalVisibleGroups = (session.themes || []).length + (unassignedTickets.length > 0 ? 1 : 0);
+  const groupMinWidth = getGroupMinWidth(totalVisibleGroups);
 
   const CompactTicket = ({ ticket }: { ticket: Ticket }) => {
     const [expanded, setExpanded] = useState(false);
@@ -172,10 +181,10 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
     return (
       <div
-        className={`flex flex-col rounded-xl border-2 transition-all duration-200 shrink-0 ${isUnassigned
-          ? 'bg-secondary/20 border-dashed border-border min-w-[160px] w-[160px]'
-          : 'bg-surface border-border min-w-[170px] w-[170px]'
-          } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} self-start h-fit`}
+        className={`flex min-w-0 flex-col rounded-xl border-2 transition-all duration-200 ${isUnassigned
+          ? 'bg-secondary/20 border-dashed border-border'
+          : 'bg-surface border-border'
+          } ${isDragOver ? 'border-primary bg-primary/5 shadow-lg shadow-primary/10' : ''} self-start h-fit w-full`}
         onDragOver={(e) => handleDragOver(e, groupId)}
         onDragLeave={handleDragLeave}
         onDrop={(e) => handleDrop(e, themeId)}
@@ -192,17 +201,32 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
           }
           <div className="flex-1 min-w-0">
             {editingThemeId === theme?.id ? (
-              <div className="flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
-                <input
-                  autoFocus
-                  value={editThemeName}
-                  onChange={(e) => setEditThemeName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') saveThemeName(); }}
-                  className="w-full text-xs font-bold text-text bg-background rounded px-1.5 py-0.5 outline-none"
-                />
-                <button onClick={saveThemeName} className="text-green-500 hover:text-green-600 shrink-0">
-                  <Check className="w-4 h-4" />
-                </button>
+              <div className="relative" onClick={(e) => e.stopPropagation()}>
+                <div className="flex min-w-0 items-center gap-1">
+                  <h3 className="font-bold text-[11px] text-text truncate opacity-40">
+                    {title}
+                  </h3>
+                </div>
+                <div className="absolute left-0 top-full z-50 mt-2 w-[min(18rem,calc(100vw-2rem))] rounded-xl border border-border bg-surface p-2 shadow-2xl">
+                  <div className="flex items-center gap-2">
+                    <input
+                      autoFocus
+                      value={editThemeName}
+                      onChange={(e) => setEditThemeName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveThemeName();
+                        if (e.key === 'Escape') setEditingThemeId(null);
+                      }}
+                      className="w-full rounded-lg border border-border bg-background px-2.5 py-2 text-sm font-semibold text-text outline-none transition-all focus:border-primary"
+                    />
+                    <button onClick={saveThemeName} className="shrink-0 rounded-lg bg-green-500 p-2 text-white transition-colors hover:bg-green-600">
+                      <Check className="w-4 h-4" />
+                    </button>
+                    <button onClick={() => setEditingThemeId(null)} className="shrink-0 rounded-lg bg-secondary p-2 text-text-muted transition-colors hover:bg-border">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
               </div>
             ) : (
               <div className="relative group/tooltip flex-1 min-w-0">
@@ -333,7 +357,12 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
       </div>
 
       {/* Wrapping columns */}
-      <div className="flex flex-wrap items-start gap-4 pb-4">
+      <div
+        className="grid items-start gap-4 pb-4"
+        style={{
+          gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${groupMinWidth}px), 1fr))`,
+        }}
+      >
         {/* Unassigned */}
         {unassignedTickets.length > 0 && (
           <GroupColumn
