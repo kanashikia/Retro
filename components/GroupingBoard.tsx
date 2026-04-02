@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Sparkles, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight, GripVertical, RefreshCw } from 'lucide-react';
 import { SessionState, ThemeGroup, Ticket, User } from '../types';
 import { getColumnColorClass } from '../utils/colors';
@@ -27,6 +27,8 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
   const [editThemeName, setEditThemeName] = useState("");
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
+  const [oversizedTicketIds, setOversizedTicketIds] = useState<Set<string>>(new Set());
+  const [manuallyCollapsedTicketIds, setManuallyCollapsedTicketIds] = useState<Set<string>>(new Set());
 
   const moveTicket = useCallback((ticketId: string, themeId: string | undefined) => {
     onUpdateSession({
@@ -116,44 +118,74 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
     e.dataTransfer.effectAllowed = 'move';
   }, []);
 
+  const updateTicketOversize = useCallback((ticketId: string, isOversized: boolean) => {
+    setOversizedTicketIds(prev => {
+      const alreadyTracked = prev.has(ticketId);
+      if (alreadyTracked === isOversized) return prev;
+      const next = new Set(prev);
+      if (isOversized) next.add(ticketId);
+      else next.delete(ticketId);
+      return next;
+    });
+
+    if (!isOversized) {
+      setManuallyCollapsedTicketIds(prev => {
+        if (!prev.has(ticketId)) return prev;
+        const next = new Set(prev);
+        next.delete(ticketId);
+        return next;
+      });
+    }
+  }, []);
+
+  const toggleTicketExpanded = useCallback((ticketId: string) => {
+    setManuallyCollapsedTicketIds(prev => {
+      const next = new Set(prev);
+      if (next.has(ticketId)) next.delete(ticketId);
+      else next.add(ticketId);
+      return next;
+    });
+  }, []);
+
   const unassignedTickets = (session.tickets || []).filter(t => !t.themeId);
   const totalVisibleGroups = (session.themes || []).length + (unassignedTickets.length > 0 ? 1 : 0);
   const groupMinWidth = getGroupMinWidth(totalVisibleGroups);
 
   const CompactTicket = ({ ticket }: { ticket: Ticket }) => {
-    const [expanded, setExpanded] = useState(false);
-    const [isTruncated, setIsTruncated] = useState(false);
     const textRef = useRef<HTMLSpanElement | null>(null);
+    const isOversized = oversizedTicketIds.has(ticket.id);
+    const isExpanded = isOversized && !manuallyCollapsedTicketIds.has(ticket.id);
 
-    useEffect(() => {
+    useLayoutEffect(() => {
       const element = textRef.current;
       if (!element) return;
 
-      const updateTruncation = () => {
-        setIsTruncated(element.scrollWidth > element.clientWidth);
+      const measureOversize = () => {
+        if (isExpanded) return;
+        updateTicketOversize(ticket.id, element.scrollWidth > element.clientWidth);
       };
 
-      updateTruncation();
+      measureOversize();
 
       if (typeof ResizeObserver === 'undefined') return;
-      const observer = new ResizeObserver(updateTruncation);
+      const observer = new ResizeObserver(measureOversize);
       observer.observe(element);
 
       return () => observer.disconnect();
-    }, [ticket.text, expanded]);
+    }, [ticket.id, ticket.text, isExpanded, updateTicketOversize]);
 
     return (
       <div
         draggable
         onDragStart={(e) => handleDragStart(e, ticket.id)}
-        onClick={() => isTruncated && setExpanded(prev => !prev)}
+        onClick={() => isOversized && toggleTicketExpanded(ticket.id)}
         title={ticket.text}
-        className={`flex items-start gap-1.5 py-1 px-2 rounded-md border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[12px] leading-snug group/ticket ${isTruncated ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)}`}
+        className={`flex items-start gap-1.5 py-1 px-2 rounded-md border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[12px] leading-snug group/ticket ${isOversized ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)}`}
       >
         <GripVertical className="w-2.5 h-2.5 text-text-muted/40 shrink-0 mt-0.5 group-hover/ticket:text-text-muted transition-colors" />
         <span
           ref={textRef}
-          className={`text-text flex-1 min-w-0 ${expanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}
+          className={`text-text flex-1 min-w-0 ${isExpanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}
         >
           {ticket.text}
         </span>
