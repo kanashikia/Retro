@@ -2,9 +2,12 @@
 import React, { useState } from 'react';
 import { Vote, Plus, Minus, ChevronDown, ChevronRight } from 'lucide-react';
 import { SessionState, User } from '../types';
-import { getColumnColorClass } from '../utils/colors';
+import { getColumnColorClass, getColumnCompactLabel, getColumnSecondaryColorClass, getColumnSurfaceClass } from '../utils/colors';
+import ColumnMarker from './ColumnMarker';
 import ReactionBadge from './ReactionBadge';
 import ReactionPicker from './ReactionPicker';
+
+const VOTING_CARD_MIN_WIDTH = 240;
 
 interface Props {
   session: SessionState;
@@ -71,7 +74,7 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
   };
 
   return (
-    <div className="space-y-4 max-w-7xl mx-auto pb-6">
+    <div className="w-full space-y-4 pb-6">
       {/* Compact header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-surface p-4 rounded-2xl border border-border shadow-sm">
         <div className="flex items-center gap-3">
@@ -132,8 +135,13 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
         </div>
       )}
 
-      {/* Theme cards grid — optimized for density */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+      {/* Theme cards grid — uses the full board width like grouping */}
+        <div
+          className="grid items-start gap-3"
+          style={{
+            gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${VOTING_CARD_MIN_WIDTH}px), 1fr))`,
+          }}
+        >
         {(session.themes || []).map(theme => {
           const userVotes = theme.voterIds.filter(id => String(id) === currentUserId).length;
           const hasVoted = userVotes > 0;
@@ -175,8 +183,24 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
               {isExpanded && (
                 <div className="flex-1 bg-background/50 rounded-lg p-2 space-y-1.5 max-h-[200px] overflow-y-auto border border-border/50 mb-2">
                   {themeTickets.map(t => (
-                    <div key={t.id} className={`bg-surface p-2 rounded-lg border-l-[3px] text-[12px] text-text leading-snug ${getColumnColorClass(t.column)}`}>
-                      <p className="break-words min-w-0">{t.text}</p>
+                    <div
+                      key={t.id}
+                      className={`rounded-lg border border-transparent border-l-[3px] p-2.5 text-[12px] text-text leading-snug shadow-sm ${getColumnColorClass(t.column)} ${getColumnSurfaceClass(t.column)}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span
+                          aria-hidden="true"
+                          className={`inline-flex h-5 min-w-5 items-center justify-center self-center rounded-full border shrink-0 ${getColumnSecondaryColorClass(t.column)}`}
+                        >
+                          <ColumnMarker column={t.column} className="w-3 h-3" />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p className="break-words min-w-0">{t.text}</p>
+                          <span className={`mt-2 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] ${getColumnSecondaryColorClass(t.column)}`}>
+                            {getColumnCompactLabel(t.column)}
+                          </span>
+                        </div>
+                      </div>
                       {(t.reactions && Object.keys(t.reactions).length > 0) && (
                         <div className="mt-1 flex flex-wrap gap-0.5">
                           {Object.entries(t.reactions).map(([emoji, userIds]) => (

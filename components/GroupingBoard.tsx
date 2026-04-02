@@ -2,7 +2,8 @@
 import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Sparkles, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight, GripVertical, RefreshCw } from 'lucide-react';
 import { SessionState, ThemeGroup, Ticket, User } from '../types';
-import { getColumnColorClass } from '../utils/colors';
+import { getColumnColorClass, getColumnCompactLabel, getColumnSecondaryColorClass, getColumnSurfaceClass } from '../utils/colors';
+import ColumnMarker from './ColumnMarker';
 
 interface Props {
   session: SessionState;
@@ -179,15 +180,24 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
         draggable
         onDragStart={(e) => handleDragStart(e, ticket.id)}
         onClick={() => isOversized && toggleTicketExpanded(ticket.id)}
-        title={ticket.text}
-        className={`flex items-start gap-1.5 py-1 px-2 rounded-md border-l-[3px] bg-ticket-bg hover:bg-surface cursor-grab active:cursor-grabbing transition-all text-[12px] leading-snug group/ticket ${isOversized ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)}`}
+        title={`${ticket.column} · ${ticket.text}`}
+        className={`flex items-center gap-2 rounded-lg border border-transparent border-l-[3px] px-2 py-1.5 cursor-grab active:cursor-grabbing transition-all text-[12px] leading-snug group/ticket shadow-sm ${isOversized ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)} ${getColumnSurfaceClass(ticket.column)}`}
       >
-        <GripVertical className="w-2.5 h-2.5 text-text-muted/40 shrink-0 mt-0.5 group-hover/ticket:text-text-muted transition-colors" />
+        <GripVertical className="w-2.5 h-2.5 text-text-muted/40 shrink-0 self-center group-hover/ticket:text-text-muted transition-colors" />
+        <span
+          aria-hidden="true"
+          className={`inline-flex h-4 min-w-4 items-center justify-center self-center rounded-full border shrink-0 ${getColumnSecondaryColorClass(ticket.column)}`}
+        >
+          <ColumnMarker column={ticket.column} className="w-2.5 h-2.5" />
+        </span>
         <span
           ref={textRef}
           className={`text-text flex-1 min-w-0 ${isExpanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}
         >
           {ticket.text}
+        </span>
+        <span className={`hidden shrink-0 items-center rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] text-center sm:inline-flex ${getColumnSecondaryColorClass(ticket.column)}`}>
+          {getColumnCompactLabel(ticket.column)}
         </span>
       </div>
     );

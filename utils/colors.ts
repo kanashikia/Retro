@@ -15,6 +15,21 @@ export const getColumnColorClass = (column: ColumnType): string => {
     }
 };
 
+export const getColumnSurfaceClass = (column: ColumnType): string => {
+    switch (column) {
+        case ColumnType.WELL:
+            return 'bg-emerald-50/80 hover:bg-emerald-50';
+        case ColumnType.LESS_WELL:
+            return 'bg-rose-50/80 hover:bg-rose-50';
+        case ColumnType.PUZZLES:
+            return 'bg-sky-50/80 hover:bg-sky-50';
+        case ColumnType.TRY_NEXT:
+            return 'bg-amber-50/80 hover:bg-amber-50';
+        default:
+            return 'bg-slate-50 hover:bg-slate-100';
+    }
+};
+
 export const getColumnSecondaryColorClass = (column: ColumnType): string => {
     switch (column) {
         case ColumnType.WELL:
@@ -27,5 +42,20 @@ export const getColumnSecondaryColorClass = (column: ColumnType): string => {
             return 'bg-amber-50 text-amber-700 border-amber-100';
         default:
             return 'bg-slate-50 text-slate-700 border-slate-100';
+    }
+};
+
+export const getColumnCompactLabel = (column: ColumnType): string => {
+    switch (column) {
+        case ColumnType.WELL:
+            return 'Well';
+        case ColumnType.LESS_WELL:
+            return 'Less well';
+        case ColumnType.PUZZLES:
+            return 'Puzzle';
+        case ColumnType.TRY_NEXT:
+            return 'Try next';
+        default:
+            return 'Card';
     }
 };

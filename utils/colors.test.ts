@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { getColumnColorClass, getColumnSecondaryColorClass } from './colors';
+import {
+    getColumnColorClass,
+    getColumnCompactLabel,
+    getColumnSecondaryColorClass,
+    getColumnSurfaceClass
+} from './colors';
 import { ColumnType } from '../types';
 
 describe('colors utility', () => {
@@ -33,6 +38,22 @@ describe('colors utility', () => {
 
         it('should return default secondary class for invalid column', () => {
             expect(getColumnSecondaryColorClass('INVALID' as any)).toContain('bg-slate-50');
+        });
+    });
+
+    describe('getColumnSurfaceClass', () => {
+        it('should return correct surface class for PUZZLES column', () => {
+            expect(getColumnSurfaceClass(ColumnType.PUZZLES)).toContain('bg-sky-50/80');
+        });
+
+        it('should return default surface class for invalid column', () => {
+            expect(getColumnSurfaceClass('INVALID' as any)).toContain('bg-slate-50');
+        });
+    });
+
+    describe('column helpers', () => {
+        it('should return a compact label for TRY_NEXT', () => {
+            expect(getColumnCompactLabel(ColumnType.TRY_NEXT)).toBe('Try next');
         });
     });
 });
