@@ -1,6 +1,7 @@
 import React from 'react';
 import { Action, SessionState, User } from '../types';
-import { getColumnColorClass, getColumnSecondaryColorClass } from '../utils/colors';
+import { getColumnColorClass, getColumnCompactLabel, getColumnSecondaryColorClass, getColumnSurfaceClass } from '../utils/colors';
+import ColumnMarker from './ColumnMarker';
 import { Plus, Trash2, CheckCircle2, ChevronLeft, ChevronRight, LayoutDashboard, Vote, History } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import ReactionBadge from './ReactionBadge';
@@ -74,9 +75,9 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
           {(session.tickets || [])
             .filter(t => t.themeId === currentTheme.id)
             .map(t => (
-              <div key={t.id} className={`bg-surface p-4 rounded-2xl border-2 shadow-sm flex items-start gap-4 hover:border-primary/30 transition-all group ${getColumnColorClass(t.column)}`}>
-                <div className="w-10 h-10 bg-secondary rounded-xl flex items-center justify-center shrink-0 border border-border group-hover:bg-primary/10 group-hover:border-primary/20 transition-colors">
-                  <span className="text-sm font-black text-border group-hover:text-primary leading-none">#</span>
+              <div key={t.id} className={`p-4 rounded-2xl border-2 shadow-sm flex items-start gap-4 hover:border-primary/30 transition-all group ${getColumnColorClass(t.column)} ${getColumnSurfaceClass(t.column)}`}>
+                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border transition-colors ${getColumnSecondaryColorClass(t.column)}`}>
+                  <ColumnMarker column={t.column} className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-3 pt-1">
                   <p className="text-text text-sm md:text-base font-semibold leading-relaxed break-words">{t.text}</p>
@@ -98,7 +99,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
                   <div className="flex items-center gap-4 mt-4">
                     <div className="flex items-center gap-2">
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-[0.1em] border ${getColumnSecondaryColorClass(t.column)}`}>
-                        {t.column}
+                        {getColumnCompactLabel(t.column)}
                       </span>
                       <span className="text-[10px] text-text-muted font-bold uppercase tracking-tight">
                         • Shared by <span className="text-text">{t.author}</span>

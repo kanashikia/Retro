@@ -2,7 +2,8 @@
 import React, { useState } from 'react';
 import { Plus, Send, Trash2 } from 'lucide-react';
 import { SessionState, User, ColumnType, Ticket } from '../types';
-import { getColumnColorClass } from '../utils/colors';
+import { getColumnColorClass, getColumnCompactLabel, getColumnSecondaryColorClass, getColumnSurfaceClass } from '../utils/colors';
+import ColumnMarker from './ColumnMarker';
 import Timer from './Timer';
 
 interface Props {
@@ -205,7 +206,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
               {(session.tickets || [])
                 .filter(t => t.column === col && canViewTicket(t))
                 .map(ticket => (
-                  <div key={ticket.id} className={`p-6 rounded-2xl border-2 bg-ticket-bg group relative shadow-sm hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-2 ${getColumnColorClass(ticket.column)}`}>
+                  <div key={ticket.id} className={`p-6 rounded-2xl border-2 group relative shadow-sm hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-2 ${getColumnColorClass(ticket.column)} ${getColumnSurfaceClass(ticket.column)}`}>
                     {editingTicketId === ticket.id ? (
                       <div className="flex flex-col gap-3">
                         <textarea
@@ -222,6 +223,14 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                       </div>
                     ) : (
                       <>
+                        <div className="mb-4 flex items-center justify-between gap-3">
+                          <div className={`inline-flex items-center gap-2 rounded-full border px-2 py-1 text-[10px] font-black uppercase tracking-[0.14em] ${getColumnSecondaryColorClass(ticket.column)}`}>
+                            <span className="inline-flex h-4 w-4 items-center justify-center rounded-full bg-white/60">
+                              <ColumnMarker column={ticket.column} className="w-2.5 h-2.5" />
+                            </span>
+                            <span>{getColumnCompactLabel(ticket.column)}</span>
+                          </div>
+                        </div>
                         <p className="text-text text-base lg:text-lg leading-relaxed whitespace-pre-wrap break-words">{ticket.text}</p>
 
                         <div className="mt-5 flex items-center justify-between">
