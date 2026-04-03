@@ -71,7 +71,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
           <div className="flex items-center justify-between w-full">
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-4">
-                <span className="text-sm font-bold text-slate-700">Brainstorm Timer:</span>
+                <span className="text-sm font-bold text-text">Brainstorm Timer:</span>
                 <select
                   value={session.brainstormTimerDuration || 10}
                   onChange={(e) => onUpdateSession({ ...session, brainstormTimerDuration: Number(e.target.value) })}
@@ -84,7 +84,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
               </div>
               {session.brainstormTimerEndsAt && (
                 <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Remaining:</span>
+                  <span className="text-xs font-bold text-text-muted uppercase tracking-wider">Remaining:</span>
                   <Timer endsAt={session.brainstormTimerEndsAt} />
                 </div>
               )}
@@ -146,7 +146,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
             <div className="flex items-center gap-8">
               {session.brainstormTimerEndsAt ? (
                 <div className="flex items-center gap-4">
-                  <span className="text-sm font-bold text-slate-700 uppercase tracking-widest">Brainstorming ending in:</span>
+                  <span className="text-sm font-bold text-text uppercase tracking-widest">Brainstorming ending in:</span>
                   <Timer endsAt={session.brainstormTimerEndsAt} />
                 </div>
               ) : (
