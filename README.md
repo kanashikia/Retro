@@ -84,9 +84,9 @@
    openssl rand -hex 32
    ```
 
-### 🐳 Running with Docker (Recommended)
+### 🐳 Running with Docker
 
-The easiest way to get everything running, including the MySQL database, is using Docker:
+For local development:
 
 ```bash
 docker-compose up --build
@@ -96,6 +96,18 @@ The app will be available at `http://localhost:3000`.
 
 If `docker-compose` reports missing variables, verify your `.env` contains:
 `DB_PASSWORD`, `JWT_SECRET`, and `GEMINI_API_KEY`.
+
+For self-hosted production, use the production compose file instead of the dev stack:
+
+```bash
+docker compose -f docker-compose.prod.yml up -d --build
+```
+
+The production stack keeps MySQL bound to `127.0.0.1:3306` and the app bound to `127.0.0.1:3002`, so the intended setup is:
+
+1. Run the app behind a reverse proxy with TLS.
+2. Set `CLIENT_URL` and `CORS_ORIGINS` to your public HTTPS origin.
+3. Do not expose MySQL or Redis directly to the Internet.
 
 ### 🛠️ Manual Execution
 
@@ -118,8 +130,11 @@ This application uses a server-side proxy to communicate with the Gemini API. Th
 
 ## ✅ Production Hardening Included
 - **Admin identity verification on sockets**: admin actions require a valid JWT-linked admin identity.
+- **Participant identity is server-signed per session**: anonymous users no longer self-declare the identifier used for votes and brainstorm visibility.
 - **Server-side session update controls**: participant updates are constrained by phase and cannot tamper with admin/phase ownership.
 - **Protected admin HTTP endpoints**: session creation/history require `Authorization: Bearer <token>`.
+- **Session REST fallback is owner-only**: admin session exports are no longer readable by other authenticated admins.
+- **Password resets revoke old JWTs**: previously issued admin tokens stop working after a reset.
 - **Basic API abuse protection**: auth routes include request-rate limiting and secure response headers.
 - **CORS allowlist support**: configure `CORS_ORIGINS` explicitly in production.
 

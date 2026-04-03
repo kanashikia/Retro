@@ -12,12 +12,19 @@ interface ThemeContextType {
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
+const getStorage = () => {
+    if (typeof window === 'undefined') return null;
+    const storage = window.localStorage;
+    if (!storage || typeof storage.getItem !== 'function') return null;
+    return storage;
+};
+
 export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
     const [userThemeId, setUserThemeId] = useState<string | null>(null);
     const [sessionDefaultThemeId, setSessionDefaultThemeId] = useState<string | null>(null);
 
     useEffect(() => {
-        const savedThemeId = localStorage.getItem('retro_theme_id');
+        const savedThemeId = getStorage()?.getItem('retro_theme_id');
         if (savedThemeId) {
             setUserThemeId(savedThemeId);
         }
@@ -25,12 +32,12 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
 
     const setTheme = (themeId: string) => {
         setUserThemeId(themeId);
-        localStorage.setItem('retro_theme_id', themeId);
+        getStorage()?.setItem('retro_theme_id', themeId);
     };
 
     const resetToDefault = () => {
         setUserThemeId(null);
-        localStorage.removeItem('retro_theme_id');
+        getStorage()?.removeItem('retro_theme_id');
     };
 
     // Calculate current theme based on priority: user override > session default > 'light'

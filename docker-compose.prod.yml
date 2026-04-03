@@ -55,7 +55,7 @@ services:
       redis:
         condition: service_healthy
     ports:
-      - "3002:3001"
+      - "127.0.0.1:3002:3001"
     deploy:
       resources:
         limits:

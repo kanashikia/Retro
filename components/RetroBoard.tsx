@@ -20,6 +20,7 @@ import DiscussionBoard from './DiscussionBoard';
 
 const USER_KEY = 'retro_user_v1';
 const ADMIN_KEY = 'retro_admin';
+const PARTICIPANT_TOKEN_KEY = 'retro_participant_token_v1';
 
 const RetroBoard: React.FC = () => {
     const { id: sessionId } = useParams<{ id: string }>();
@@ -110,12 +111,35 @@ const RetroBoard: React.FC = () => {
     useEffect(() => {
         if (!currentUser || !sessionId) return;
         const token = localStorage.getItem('retro_token');
-        socket.emit('join-session', { sessionId, user: currentUser, token });
+        const participantToken = localStorage.getItem(PARTICIPANT_TOKEN_KEY);
+        socket.emit('join-session', { sessionId, user: currentUser, token, participantToken }, (response: any) => {
+            if (!response) return;
+            if (response.error) {
+                setError(response.error);
+                return;
+            }
+
+            if (response.user) {
+                setCurrentUser((prev) => {
+                    if (!prev) return response.user;
+                    if (JSON.stringify(prev) === JSON.stringify(response.user)) {
+                        return prev;
+                    }
+                    return { ...prev, ...response.user };
+                });
+            }
+
+            if (response.participantToken) {
+                localStorage.setItem(PARTICIPANT_TOKEN_KEY, response.participantToken);
+            } else if (currentUser.isAdmin) {
+                localStorage.removeItem(PARTICIPANT_TOKEN_KEY);
+            }
+        });
 
         // REST fallback: if Socket.IO fails (e.g. 503), load session data via HTTP
         let cancelled = false;
         const fetchSessionFallback = async () => {
-            if (!token) return;
+            if (!token || !currentUser.isAdmin) return;
             try {
                 const response = await fetch(`/api/sessions/${sessionId}`, {
                     headers: { Authorization: `Bearer ${token}` }
@@ -166,6 +190,7 @@ const RetroBoard: React.FC = () => {
         if (currentUser) {
             if (currentUser.isAdmin) {
                 localStorage.setItem(ADMIN_KEY, JSON.stringify(currentUser));
+                localStorage.removeItem(USER_KEY);
             } else {
                 localStorage.setItem(USER_KEY, JSON.stringify(currentUser));
             }

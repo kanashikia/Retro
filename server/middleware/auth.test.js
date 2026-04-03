@@ -36,8 +36,8 @@ describe('auth middleware', () => {
 
     it('should call next() if token is valid and user exists', async () => {
         req.headers.authorization = 'Bearer valid-token';
-        vi.mocked(jwt.verify).mockReturnValue({ id: 'user123' });
-        vi.mocked(User.findByPk).mockResolvedValue({ id: 'user123', name: 'Alice' });
+        vi.mocked(jwt.verify).mockReturnValue({ id: 'user123', tokenVersion: 2 });
+        vi.mocked(User.findByPk).mockResolvedValue({ id: 'user123', name: 'Alice', tokenVersion: 2 });
 
         await protect(req, res, next);
 
@@ -49,13 +49,24 @@ describe('auth middleware', () => {
 
     it('should return 401 if user does not exist in DB', async () => {
         req.headers.authorization = 'Bearer valid-token';
-        vi.mocked(jwt.verify).mockReturnValue({ id: 'missing' });
+        vi.mocked(jwt.verify).mockReturnValue({ id: 'missing', tokenVersion: 0 });
         vi.mocked(User.findByPk).mockResolvedValue(null);
 
         await protect(req, res, next);
 
         expect(res.status).toHaveBeenCalledWith(401);
         expect(res.json).toHaveBeenCalledWith({ message: 'Not authorized, user not found' });
+    });
+
+    it('should return 401 if tokenVersion no longer matches the user record', async () => {
+        req.headers.authorization = 'Bearer stale-token';
+        vi.mocked(jwt.verify).mockReturnValue({ id: 'user123', tokenVersion: 1 });
+        vi.mocked(User.findByPk).mockResolvedValue({ id: 'user123', tokenVersion: 2 });
+
+        await protect(req, res, next);
+
+        expect(res.status).toHaveBeenCalledWith(401);
+        expect(res.json).toHaveBeenCalledWith({ message: 'Not authorized, token expired' });
     });
 
     it('should return 401 if token verification fails', async () => {

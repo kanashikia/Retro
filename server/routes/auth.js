@@ -32,8 +32,8 @@ dotenv.config();
 
 const router = express.Router();
 
-const generateToken = (id) => {
-    return jwt.sign({ id }, process.env.JWT_SECRET, {
+const generateToken = (user) => {
+    return jwt.sign({ id: user.id, tokenVersion: Number(user.tokenVersion ?? 0) }, process.env.JWT_SECRET, {
         expiresIn: '30d',
     });
 };
@@ -58,7 +58,7 @@ router.post('/register', async (req, res) => {
             res.status(201).json({
                 id: user.id,
                 username: user.username,
-                token: generateToken(user.id),
+                token: generateToken(user),
             });
         } else {
             res.status(400).json({ message: 'Invalid user data' });
@@ -78,7 +78,7 @@ router.post('/login', async (req, res) => {
             res.json({
                 id: user.id,
                 username: user.username,
-                token: generateToken(user.id),
+                token: generateToken(user),
             });
         } else {
             res.status(401).json({ message: 'Invalid username or password' });
@@ -118,12 +118,16 @@ router.post('/forgot-password', rateLimiter, async (req, res) => {
         `;
 
         try {
-            await sendEmail({
+            const emailResult = await sendEmail({
                 to: user.email,
                 subject: 'Password Reset Request',
                 text: `Click here to reset your password: ${resetUrl}`,
                 html: message,
             });
+
+            if (!emailResult) {
+                throw new Error('Email could not be sent');
+            }
 
             res.status(200).json({ message: 'If your email is registered, you will receive a password reset link.' });
         } catch (emailError) {

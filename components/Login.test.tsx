@@ -16,9 +16,19 @@ const renderWithRouter = (ui) => {
 };
 
 describe('Login component', () => {
+    const localStorageMock = {
+        getItem: vi.fn(),
+        setItem: vi.fn(),
+        removeItem: vi.fn()
+    };
+
     beforeEach(() => {
         vi.clearAllMocks();
         global.fetch = vi.fn();
+        Object.defineProperty(window, 'localStorage', {
+            value: localStorageMock,
+            writable: true
+        });
     });
 
     it('renders login form by default', () => {
@@ -54,11 +64,6 @@ describe('Login component', () => {
     });
 
     it('handles successful login', async () => {
-        const navigateMock = vi.fn();
-        // Note: useNavigate mock is complex in vitest if not careful, 
-        // but we can check if localStorage is updated.
-        const setItemSpy = vi.spyOn(Storage.prototype, 'setItem');
-
         renderWithRouter(<Login />);
         vi.mocked(fetch).mockResolvedValueOnce({
             ok: true,
@@ -71,7 +76,7 @@ describe('Login component', () => {
         fireEvent.click(screen.getByRole('button', { name: /Sign In/i }));
 
         await waitFor(() => {
-            expect(setItemSpy).toHaveBeenCalledWith('retro_token', 'mock-token');
+            expect(localStorageMock.setItem).toHaveBeenCalledWith('retro_token', 'mock-token');
         });
     });
 

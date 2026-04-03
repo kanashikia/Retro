@@ -96,6 +96,7 @@ const Home: React.FC = () => {
     const handleLogout = () => {
         localStorage.removeItem('retro_token');
         localStorage.removeItem('retro_admin');
+        localStorage.removeItem('retro_participant_token_v1');
         navigate('/login');
     };
 

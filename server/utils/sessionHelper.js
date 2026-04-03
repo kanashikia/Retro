@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import User from '../models/User.js';
 
 export const isBrainstormPhase = (sessionData) => sessionData?.phase === 'BRAINSTORM';
 
@@ -36,13 +37,63 @@ export const sanitizeUser = (user) => {
     };
 };
 
-export const verifyAdminTokenForUser = (token, userId) => {
-    if (!token || !userId) return false;
+export const signParticipantToken = ({ sessionId, user }) =>
+    jwt.sign(
+        {
+            type: 'participant',
+            sessionId,
+            participantId: String(user?.id || '').trim(),
+            name: String(user?.name || 'Anonymous').trim().slice(0, 64)
+        },
+        process.env.JWT_SECRET,
+        { expiresIn: '7d' }
+    );
+
+export const verifyParticipantToken = (token, sessionId) => {
+    if (!token || !sessionId) return null;
+
     try {
         const decoded = jwt.verify(token, process.env.JWT_SECRET);
-        return String(decoded?.id) === String(userId);
+        if (decoded?.type !== 'participant') return null;
+        if (String(decoded?.sessionId) !== String(sessionId)) return null;
+
+        return sanitizeUser({
+            id: decoded?.participantId,
+            name: decoded?.name
+        });
     } catch {
-        return false;
+        return null;
+    }
+};
+
+export const resolveAdminUserFromToken = async (token, userId) => {
+    if (!token || !userId) return null;
+
+    try {
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (String(decoded?.id) !== String(userId)) {
+            return null;
+        }
+
+        const user = await User.findByPk(decoded.id);
+        if (!user) {
+            return null;
+        }
+
+        const decodedTokenVersion = Number(decoded?.tokenVersion ?? 0);
+        const currentTokenVersion = Number(user.tokenVersion ?? 0);
+        if (decodedTokenVersion !== currentTokenVersion) {
+            return null;
+        }
+
+        return {
+            id: String(user.id),
+            name: String(user.username || 'Administrator').trim().slice(0, 64),
+            isAdmin: true,
+            isReady: false
+        };
+    } catch {
+        return null;
     }
 };
 

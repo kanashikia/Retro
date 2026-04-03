@@ -7,7 +7,7 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import { createClient } from 'redis';
 import cors from 'cors';
 import { GoogleGenAI, Type } from "@google/genai";
-import jwt from 'jsonwebtoken';
+import { randomUUID } from 'crypto';
 import * as dotenv from 'dotenv';
 import { connectDB } from './db.js';
 import Session from './models/Session.js';
@@ -15,8 +15,10 @@ import {
     buildVisibleSessionForUser,
     applyParticipantVotingUpdate,
     calculateFallbackAssignments,
+    resolveAdminUserFromToken,
     sanitizeUser,
-    verifyAdminTokenForUser
+    signParticipantToken,
+    verifyParticipantToken
 } from './utils/sessionHelper.js';
 
 dotenv.config();
@@ -209,25 +211,20 @@ io.on('connection', (socket) => {
     const ua = socket.handshake.headers['user-agent'];
     console.log(`User connected: ${socket.id} | IP: ${ip} | UA: ${ua}`);
 
-    socket.on('join-session', async ({ sessionId: rawSessionId, user, token }) => {
+    socket.on('join-session', async ({ sessionId: rawSessionId, user, token, participantToken }, callback) => {
         if (!rawSessionId || !user) return;
         const sessionId = rawSessionId.trim();
-        const safeUser = sanitizeUser(user);
-        if (!safeUser.id) return;
+        const requestedUser = sanitizeUser(user);
+        const adminUser = await resolveAdminUserFromToken(token, requestedUser.id);
+        const verifiedParticipant = verifyParticipantToken(participantToken, sessionId);
 
-        socket.join(sessionId);
-        socketToUser.set(socket.id, { user: safeUser, sessionId });
-
-        // track session sockets locally
-        if (!sessionToSockets.has(sessionId)) {
-            sessionToSockets.set(sessionId, new Set());
-        }
-        sessionToSockets.get(sessionId).add(socket.id);
-
-        // track session user in Redis
-        await pubClient.hSet(`session:${sessionId}:participants`, safeUser.id, JSON.stringify(safeUser));
-
-        console.log(`User ${safeUser.name} (${socket.id}) joined session room: "${sessionId}" | Global users in session: ${await pubClient.hLen(`session:${sessionId}:participants`)}`);
+        const safeUser = adminUser || verifiedParticipant || {
+            ...sanitizeUser({
+                id: `guest_${randomUUID()}`,
+                name: requestedUser.name
+            }),
+            isAdmin: false
+        };
 
         try {
             // Find session in DB or create it
@@ -235,47 +232,80 @@ io.on('connection', (socket) => {
 
             if (session) {
                 const sessionData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
-                const isAdminForSession =
-                    verifyAdminTokenForUser(token, safeUser.id) &&
-                    String(sessionData?.adminId) === String(safeUser.id);
+                const isAdminForSession = !!adminUser && String(sessionData?.adminId) === String(adminUser.id);
+                const joinedUser = isAdminForSession ? adminUser : { ...safeUser, isAdmin: false };
 
-                const joinedUser = { ...safeUser, isAdmin: isAdminForSession };
+                if (session.status === 'closed' && !isAdminForSession) {
+                    if (typeof callback === 'function') {
+                        callback({ error: 'Session is closed' });
+                    }
+                    return;
+                }
+
+                socket.join(sessionId);
                 socketToUser.set(socket.id, { user: joinedUser, sessionId });
 
-                // update with potential admin status
-                await pubClient.hSet(`session:${sessionId}:participants`, safeUser.id, JSON.stringify(joinedUser));
+                if (!sessionToSockets.has(sessionId)) {
+                    sessionToSockets.set(sessionId, new Set());
+                }
+                sessionToSockets.get(sessionId).add(socket.id);
+
+                await pubClient.hSet(`session:${sessionId}:participants`, joinedUser.id, JSON.stringify(joinedUser));
+
+                console.log(`User ${joinedUser.name} (${socket.id}) joined session room: "${sessionId}" | Global users in session: ${await pubClient.hLen(`session:${sessionId}:participants`)}`);
 
                 socket.emit('session-updated', buildVisibleSessionForUser(sessionData, joinedUser, session.status));
+
+                if (typeof callback === 'function') {
+                    callback({
+                        user: joinedUser,
+                        participantToken: isAdminForSession ? null : signParticipantToken({ sessionId, user: joinedUser })
+                    });
+                }
             } else {
                 // FALLBACK: Only create if the joining user is an actual admin
                 // (This handles cases where the session wasn't pre-created for some reason)
-                if (verifyAdminTokenForUser(token, safeUser.id)) {
+                if (adminUser) {
                     const defaultData = {
                         id: sessionId,
                         phase: 'BRAINSTORM',
                         tickets: [],
                         themes: [],
                         currentThemeIndex: 0,
-                        adminId: safeUser.id,
+                        adminId: adminUser.id,
                         brainstormTimerDuration: 10,
                         brainstormTimerEndsAt: null,
                         defaultThemeId: 'light'
                     };
                     const newSession = await Session.create({
                         sessionId,
-                        adminId: safeUser.id,
+                        adminId: adminUser.id,
                         data: defaultData
                     });
                     session = newSession;
-                    const joinedUser = { ...safeUser, isAdmin: true };
+                    const joinedUser = { ...adminUser, isAdmin: true };
+
+                    socket.join(sessionId);
                     socketToUser.set(socket.id, { user: joinedUser, sessionId });
 
-                    await pubClient.hSet(`session:${sessionId}:participants`, safeUser.id, JSON.stringify(joinedUser));
+                    if (!sessionToSockets.has(sessionId)) {
+                        sessionToSockets.set(sessionId, new Set());
+                    }
+                    sessionToSockets.get(sessionId).add(socket.id);
+
+                    await pubClient.hSet(`session:${sessionId}:participants`, joinedUser.id, JSON.stringify(joinedUser));
+
+                    console.log(`User ${joinedUser.name} (${socket.id}) joined session room: "${sessionId}" | Global users in session: ${await pubClient.hLen(`session:${sessionId}:participants`)}`);
 
                     socket.emit('session-updated', buildVisibleSessionForUser(defaultData, joinedUser));
+                    if (typeof callback === 'function') {
+                        callback({ user: joinedUser, participantToken: null });
+                    }
                 } else {
                     console.log(`Unauthorized visitor ${safeUser.name} tried to join non-existent session ${sessionId}`);
-                    // Potentially emit an error or handle redirection
+                    if (typeof callback === 'function') {
+                        callback({ error: 'Unauthorized' });
+                    }
                     return;
                 }
             }
@@ -322,6 +352,10 @@ io.on('connection', (socket) => {
         try {
             console.log(`Processing update-session for ${sessionId} from user ${actor.id}`);
             const session = await Session.findOne({ where: { sessionId: sessionId } });
+            if (!session) {
+                console.warn(`Update-session rejected: session ${sessionId} not found`);
+                return;
+            }
 
             // Allow updates from participants if they are in the session
             const participants = await getParticipants(sessionId);
@@ -384,7 +418,7 @@ io.on('connection', (socket) => {
 
             await Session.upsert({
                 sessionId: sessionId,
-                adminId: (session ? session.adminId : actor.id),
+                adminId: session.adminId,
                 data: updatedData
             });
 
@@ -398,7 +432,8 @@ io.on('connection', (socket) => {
 
     socket.on('toggle-reaction', async ({ sessionId, ticketId, emoji }) => {
         const actor = socketToUser.get(socket.id)?.user;
-        if (!sessionId || !ticketId || !emoji || !actor?.id) return;
+        const actorSessionId = socketToUser.get(socket.id)?.sessionId;
+        if (!sessionId || !ticketId || !emoji || !actor?.id || actorSessionId !== sessionId) return;
 
         try {
             const session = await Session.findOne({ where: { sessionId } });
@@ -445,6 +480,9 @@ io.on('connection', (socket) => {
 
         try {
             const session = await Session.findOne({ where: { sessionId } });
+            if (!session) {
+                return callback({ error: 'Session not found' });
+            }
             if (session && (!actor.isAdmin || String(session.adminId) !== String(actor.id))) {
                 return callback({ error: 'Unauthorized' });
             }

@@ -48,6 +48,7 @@ const Login: React.FC = () => {
             } else {
                 localStorage.setItem('retro_token', data.token);
                 localStorage.setItem('retro_admin', JSON.stringify({ id: data.id, name: data.username, isAdmin: true, votesRemaining: 5 }));
+                localStorage.removeItem('retro_participant_token_v1');
                 navigate('/');
             }
         } catch (err: any) {

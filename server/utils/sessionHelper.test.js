@@ -1,10 +1,16 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import * as helper from './sessionHelper';
 import jwt from 'jsonwebtoken';
+import User from '../models/User';
 
 vi.mock('jsonwebtoken');
+vi.mock('../models/User');
 
 describe('sessionHelper', () => {
+    beforeEach(() => {
+        vi.clearAllMocks();
+    });
+
     describe('sanitizeUser', () => {
         it('should sanitize user object and ensure name and id', () => {
             const rawUser = { id: ' 123 ', name: '  Alice  ', unknown: 'bla' };
@@ -75,24 +81,67 @@ describe('sessionHelper', () => {
         });
     });
 
-    describe('verifyAdminTokenForUser', () => {
-        it('should return false if token is missing', () => {
-            expect(helper.verifyAdminTokenForUser(null, '123')).toBe(false);
+    describe('participant token helpers', () => {
+        it('should resolve a participant identity from a token for the same session', () => {
+            vi.mocked(jwt.verify).mockReturnValue({
+                type: 'participant',
+                sessionId: 'retro-1',
+                participantId: 'guest_123',
+                name: 'Alice'
+            });
+
+            expect(helper.verifyParticipantToken('participant-token', 'retro-1')).toEqual({
+                id: 'guest_123',
+                name: 'Alice',
+                isAdmin: false,
+                isReady: false
+            });
         });
 
-        it('should return true if jwt.verify returns matching id', () => {
-            vi.mocked(jwt.verify).mockReturnValue({ id: '123' });
-            expect(helper.verifyAdminTokenForUser('good-token', '123')).toBe(true);
+        it('should reject a participant token from another session', () => {
+            vi.mocked(jwt.verify).mockReturnValue({
+                type: 'participant',
+                sessionId: 'retro-2',
+                participantId: 'guest_123',
+                name: 'Alice'
+            });
+
+            expect(helper.verifyParticipantToken('participant-token', 'retro-1')).toBeNull();
+        });
+    });
+
+    describe('resolveAdminUserFromToken', () => {
+        it('should return null if token is missing', async () => {
+            await expect(helper.resolveAdminUserFromToken(null, '123')).resolves.toBeNull();
         });
 
-        it('should return false if jwt.verify returns different id', () => {
-            vi.mocked(jwt.verify).mockReturnValue({ id: '999' });
-            expect(helper.verifyAdminTokenForUser('token', '123')).toBe(false);
+        it('should resolve the admin when the token matches the current tokenVersion', async () => {
+            vi.mocked(jwt.verify).mockReturnValue({ id: '123', tokenVersion: 4 });
+            vi.mocked(User.findByPk).mockResolvedValue({ id: '123', username: 'alice', tokenVersion: 4 });
+
+            await expect(helper.resolveAdminUserFromToken('good-token', '123')).resolves.toEqual({
+                id: '123',
+                name: 'alice',
+                isAdmin: true,
+                isReady: false
+            });
         });
 
-        it('should return false if jwt.verify throws', () => {
+        it('should return null if jwt.verify returns different id', async () => {
+            vi.mocked(jwt.verify).mockReturnValue({ id: '999', tokenVersion: 0 });
+            await expect(helper.resolveAdminUserFromToken('token', '123')).resolves.toBeNull();
+        });
+
+        it('should return null if tokenVersion is stale', async () => {
+            vi.mocked(jwt.verify).mockReturnValue({ id: '123', tokenVersion: 1 });
+            vi.mocked(User.findByPk).mockResolvedValue({ id: '123', username: 'alice', tokenVersion: 2 });
+
+            await expect(helper.resolveAdminUserFromToken('token', '123')).resolves.toBeNull();
+        });
+
+        it('should return null if jwt.verify throws', async () => {
             vi.mocked(jwt.verify).mockImplementation(() => { throw new Error('fail'); });
-            expect(helper.verifyAdminTokenForUser('bad-token', '123')).toBe(false);
+            await expect(helper.resolveAdminUserFromToken('bad-token', '123')).resolves.toBeNull();
         });
     });
 

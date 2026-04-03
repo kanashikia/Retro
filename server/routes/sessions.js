@@ -86,6 +86,9 @@ router.get('/:sessionId', protect, async (req, res) => {
         if (!session) {
             return res.status(404).json({ message: 'Session not found' });
         }
+        if (String(session.adminId) !== String(req.user.id)) {
+            return res.status(403).json({ message: 'Forbidden' });
+        }
         const sessionData = typeof session.data === 'string'
             ? JSON.parse(session.data)
             : session.data;

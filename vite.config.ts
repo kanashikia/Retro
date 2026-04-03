@@ -35,6 +35,7 @@ export default defineConfig(({ mode }) => {
       environment: 'jsdom',
       setupFiles: './setupTests.ts',
       pool: 'threads',
+      exclude: ['**/.claude/**', '**/node_modules/**'],
     },
   };
 });
