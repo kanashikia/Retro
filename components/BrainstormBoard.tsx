@@ -2,7 +2,15 @@
 import React, { useState } from 'react';
 import { Plus, Send, Trash2 } from 'lucide-react';
 import { SessionState, User, ColumnType, Ticket } from '../types';
-import { getColumnColorClass, getColumnCompactLabel, getColumnSecondaryColorClass, getColumnSurfaceClass } from '../utils/colors';
+import {
+  getColumnColorClass,
+  getColumnCompactLabel,
+  getColumnSecondaryColorClass,
+  getColumnSurfaceClass,
+  getTicketAvatarClass,
+  getTicketMetaTextClass,
+  getTicketTextClass
+} from '../utils/colors';
 import ColumnMarker from './ColumnMarker';
 import Timer from './Timer';
 
@@ -231,12 +239,12 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                             <span>{getColumnCompactLabel(ticket.column)}</span>
                           </div>
                         </div>
-                        <p className="text-text text-base lg:text-lg leading-relaxed whitespace-pre-wrap break-words">{ticket.text}</p>
+                        <p className={`${getTicketTextClass()} text-base lg:text-lg leading-relaxed whitespace-pre-wrap break-words`}>{ticket.text}</p>
 
                         <div className="mt-5 flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 bg-secondary rounded-full flex items-center justify-center text-[10px] font-bold text-text-muted uppercase">{ticket.author[0]}</div>
-                            <span className="text-xs font-bold text-text-muted">By {ticket.author}</span>
+                            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold uppercase ${getTicketAvatarClass()}`}>{ticket.author[0]}</div>
+                            <span className={`text-xs font-bold ${getTicketMetaTextClass()}`}>By {ticket.author}</span>
                           </div>
                           <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
                             {(currentUser.isAdmin || String(ticket.authorId) === String(currentUser.id)) && (

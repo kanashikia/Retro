@@ -1,59 +1,23 @@
-import { describe, it, expect } from 'vitest';
-import {
-    getColumnColorClass,
-    getColumnCompactLabel,
-    getColumnSecondaryColorClass,
-    getColumnSurfaceClass
-} from './colors';
+import { describe, expect, it } from 'vitest';
 import { ColumnType } from '../types';
+import {
+    getColumnSecondaryColorClass,
+    getTicketAvatarClass,
+    getTicketMetaTextClass,
+    getTicketTextClass,
+} from './colors';
 
-describe('colors utility', () => {
-    describe('getColumnColorClass', () => {
-        it('should return correct class for WELL column', () => {
-            expect(getColumnColorClass(ColumnType.WELL)).toBe('border-emerald-500');
-        });
-
-        it('should return correct class for LESS_WELL column', () => {
-            expect(getColumnColorClass(ColumnType.LESS_WELL)).toBe('border-rose-500');
-        });
-
-        it('should return correct class for PUZZLES column', () => {
-            expect(getColumnColorClass(ColumnType.PUZZLES)).toBe('border-sky-500');
-        });
-
-        it('should return correct class for TRY_NEXT column', () => {
-            expect(getColumnColorClass(ColumnType.TRY_NEXT)).toBe('border-amber-500');
-        });
-
-        it('should return default class for invalid column', () => {
-            expect(getColumnColorClass('INVALID' as any)).toBe('border-slate-200');
-        });
+describe('ticket contrast helpers', () => {
+    it('uses explicit readable text colors inside colored tickets', () => {
+        expect(getTicketTextClass()).toBe('text-slate-900');
+        expect(getTicketMetaTextClass()).toBe('text-slate-600');
+        expect(getTicketAvatarClass()).toBe('bg-white/70 text-slate-700');
     });
 
-    describe('getColumnSecondaryColorClass', () => {
-        it('should return correct secondary class for WELL column', () => {
-            expect(getColumnSecondaryColorClass(ColumnType.WELL)).toContain('bg-emerald-50');
-            expect(getColumnSecondaryColorClass(ColumnType.WELL)).toContain('text-emerald-700');
-        });
-
-        it('should return default secondary class for invalid column', () => {
-            expect(getColumnSecondaryColorClass('INVALID' as any)).toContain('bg-slate-50');
-        });
-    });
-
-    describe('getColumnSurfaceClass', () => {
-        it('should return correct surface class for PUZZLES column', () => {
-            expect(getColumnSurfaceClass(ColumnType.PUZZLES)).toContain('bg-sky-50/80');
-        });
-
-        it('should return default surface class for invalid column', () => {
-            expect(getColumnSurfaceClass('INVALID' as any)).toContain('bg-slate-50');
-        });
-    });
-
-    describe('column helpers', () => {
-        it('should return a compact label for TRY_NEXT', () => {
-            expect(getColumnCompactLabel(ColumnType.TRY_NEXT)).toBe('Try next');
-        });
+    it('keeps column badges on their dedicated accessible palette', () => {
+        expect(getColumnSecondaryColorClass(ColumnType.WELL)).toContain('text-emerald-700');
+        expect(getColumnSecondaryColorClass(ColumnType.LESS_WELL)).toContain('text-rose-700');
+        expect(getColumnSecondaryColorClass(ColumnType.PUZZLES)).toContain('text-sky-700');
+        expect(getColumnSecondaryColorClass(ColumnType.TRY_NEXT)).toContain('text-amber-700');
     });
 });

@@ -2,7 +2,13 @@
 import React, { useState } from 'react';
 import { Vote, Plus, Minus, ChevronDown, ChevronRight } from 'lucide-react';
 import { SessionState, User } from '../types';
-import { getColumnColorClass, getColumnCompactLabel, getColumnSecondaryColorClass, getColumnSurfaceClass } from '../utils/colors';
+import {
+  getColumnColorClass,
+  getColumnCompactLabel,
+  getColumnSecondaryColorClass,
+  getColumnSurfaceClass,
+  getTicketTextClass
+} from '../utils/colors';
 import ColumnMarker from './ColumnMarker';
 import ReactionBadge from './ReactionBadge';
 import ReactionPicker from './ReactionPicker';
@@ -195,7 +201,7 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
                           <ColumnMarker column={t.column} className="w-3 h-3" />
                         </span>
                         <div className="min-w-0 flex-1">
-                          <p className="break-words min-w-0">{t.text}</p>
+                          <p className={`${getTicketTextClass()} break-words min-w-0`}>{t.text}</p>
                           <span className={`mt-2 inline-flex items-center rounded-full border px-1.5 py-0.5 text-[9px] font-black uppercase tracking-[0.12em] ${getColumnSecondaryColorClass(t.column)}`}>
                             {getColumnCompactLabel(t.column)}
                           </span>

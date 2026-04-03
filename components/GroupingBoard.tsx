@@ -2,7 +2,13 @@
 import React, { useState, useCallback, useEffect, useLayoutEffect, useRef } from 'react';
 import { Sparkles, Plus, Trash2, Edit2, Check, X, ChevronDown, ChevronRight, GripVertical, RefreshCw } from 'lucide-react';
 import { SessionState, ThemeGroup, Ticket, User } from '../types';
-import { getColumnColorClass, getColumnCompactLabel, getColumnSecondaryColorClass, getColumnSurfaceClass } from '../utils/colors';
+import {
+  getColumnColorClass,
+  getColumnCompactLabel,
+  getColumnSecondaryColorClass,
+  getColumnSurfaceClass,
+  getTicketTextClass
+} from '../utils/colors';
 import ColumnMarker from './ColumnMarker';
 
 interface Props {
@@ -192,7 +198,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
         </span>
         <span
           ref={textRef}
-          className={`text-text flex-1 min-w-0 ${isExpanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}
+          className={`${getTicketTextClass()} flex-1 min-w-0 ${isExpanded ? 'whitespace-pre-wrap break-words' : 'truncate'}`}
         >
           {ticket.text}
         </span>

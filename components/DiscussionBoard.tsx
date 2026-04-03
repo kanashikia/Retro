@@ -1,6 +1,13 @@
 import React from 'react';
 import { Action, SessionState, User } from '../types';
-import { getColumnColorClass, getColumnCompactLabel, getColumnSecondaryColorClass, getColumnSurfaceClass } from '../utils/colors';
+import {
+  getColumnColorClass,
+  getColumnCompactLabel,
+  getColumnSecondaryColorClass,
+  getColumnSurfaceClass,
+  getTicketMetaTextClass,
+  getTicketTextClass
+} from '../utils/colors';
 import ColumnMarker from './ColumnMarker';
 import { Plus, Trash2, CheckCircle2, ChevronLeft, ChevronRight, LayoutDashboard, Vote, History } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
@@ -80,7 +87,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
                   <ColumnMarker column={t.column} className="w-4 h-4" />
                 </div>
                 <div className="flex-1 min-w-0 space-y-3 pt-1">
-                  <p className="text-text text-sm md:text-base font-semibold leading-relaxed break-words">{t.text}</p>
+                  <p className={`${getTicketTextClass()} text-sm md:text-base font-semibold leading-relaxed break-words`}>{t.text}</p>
 
                   {(t.reactions && Object.keys(t.reactions).length > 0) && (
                     <div className="mt-4 flex flex-wrap gap-2">
@@ -101,8 +108,8 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
                       <span className={`inline-flex items-center px-1.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-[0.1em] border ${getColumnSecondaryColorClass(t.column)}`}>
                         {getColumnCompactLabel(t.column)}
                       </span>
-                      <span className="text-[10px] text-text-muted font-bold uppercase tracking-tight">
-                        • Shared by <span className="text-text">{t.author}</span>
+                      <span className={`text-[10px] font-bold uppercase tracking-tight ${getTicketMetaTextClass()}`}>
+                        • Shared by <span className={getTicketTextClass()}>{t.author}</span>
                       </span>
                     </div>
                     <ReactionPicker onSelect={(emoji) => onToggleReaction(t.id, emoji)} />

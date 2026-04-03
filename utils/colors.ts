@@ -45,6 +45,18 @@ export const getColumnSecondaryColorClass = (column: ColumnType): string => {
     }
 };
 
+export const getTicketTextClass = (): string => {
+    return 'text-slate-900';
+};
+
+export const getTicketMetaTextClass = (): string => {
+    return 'text-slate-600';
+};
+
+export const getTicketAvatarClass = (): string => {
+    return 'bg-white/70 text-slate-700';
+};
+
 export const getColumnCompactLabel = (column: ColumnType): string => {
     switch (column) {
         case ColumnType.WELL:
