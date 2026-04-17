@@ -193,6 +193,18 @@ const geminiApiKey = (process.env.GEMINI_API_KEY || '').trim();
 const hasUsableGeminiKey =
     !!geminiApiKey &&
     !/replace_with|your_|changeme|example|dummy/i.test(geminiApiKey);
+const rawAiGroupingModelFallbacks = (process.env.AI_GROUPING_MODEL_FALLBACKS || '').trim();
+const defaultAiGroupingModels = [
+    'gemini-3-flash',
+    'gemini-3.1-flash-lite',
+    'gemma-4-31b-it',
+    'gemma-4-26b-it',
+    'gemini-2.5-flash'
+];
+const aiGroupingModels = (rawAiGroupingModelFallbacks
+    ? rawAiGroupingModelFallbacks.split(',')
+    : defaultAiGroupingModels
+).map((model) => model.trim()).filter(Boolean);
 let ai = null;
 
 if (!hasUsableGeminiKey) {
@@ -205,6 +217,72 @@ if (!hasUsableGeminiKey) {
         console.error('[AI] Gemini initialization failed. AI grouping will be unavailable:', error.message);
     }
 }
+
+const isAiAuthError = (message) => /api key|unauth|auth|401|403|invalid/i.test(message);
+const isAiNetworkError = (message) => /fetch failed|ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT/i.test(message);
+const isRetryableAiModelError = (message) => /429|quota|rate limit|resource exhausted|exhausted|unavailable|overloaded|internal|deadline|503|500|model.+not found|unsupported|not supported/i.test(message);
+
+const generateAiGroupingContent = async (prompt) => {
+    let lastError = null;
+
+    for (const model of aiGroupingModels) {
+        try {
+            const result = await ai.models.generateContent({
+                model,
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: Type.OBJECT,
+                        properties: {
+                            themes: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        id: { type: Type.STRING },
+                                        name: { type: Type.STRING },
+                                        description: { type: Type.STRING }
+                                    },
+                                    required: ["id", "name", "description"]
+                                }
+                            },
+                            assignments: {
+                                type: Type.ARRAY,
+                                items: {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        ticketId: { type: Type.STRING },
+                                        themeId: { type: Type.STRING }
+                                    },
+                                    required: ["ticketId", "themeId"]
+                                }
+                            }
+                        },
+                        required: ["themes", "assignments"]
+                    }
+                }
+            });
+
+            return { result, model };
+        } catch (error) {
+            lastError = error;
+            const message = String(error?.message || '');
+            const canFallback = isRetryableAiModelError(message) && model !== aiGroupingModels[aiGroupingModels.length - 1];
+
+            console.warn(`[AI] Model ${model} failed for ticket grouping: ${message}`);
+            if (canFallback) {
+                console.warn(`[AI] Falling back to next model after ${model}.`);
+                continue;
+            }
+
+            error.aiModel = model;
+            throw error;
+        }
+    }
+
+    throw lastError || new Error('No AI grouping model configured.');
+};
 
 io.on('connection', (socket) => {
     const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
@@ -521,42 +599,8 @@ Items (${tickets.length} cards):
 ${JSON.stringify(promptItems)}
 `;
 
-            const result = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            themes: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        id: { type: Type.STRING },
-                                        name: { type: Type.STRING },
-                                        description: { type: Type.STRING }
-                                    },
-                                    required: ["id", "name", "description"]
-                                }
-                            },
-                            assignments: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        ticketId: { type: Type.STRING },
-                                        themeId: { type: Type.STRING }
-                                    },
-                                    required: ["ticketId", "themeId"]
-                                }
-                            }
-                        },
-                        required: ["themes", "assignments"]
-                    }
-                }
-            });
+            const { result, model } = await generateAiGroupingContent(prompt);
+            console.log(`[AI] Ticket grouping generated with model: ${model}`);
 
             const rawText = result?.text ?? result?.response?.text?.();
             if (!rawText) {
