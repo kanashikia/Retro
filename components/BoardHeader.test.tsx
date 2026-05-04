@@ -3,6 +3,7 @@ import { describe, it, expect, vi } from 'vitest';
 import BoardHeader from './BoardHeader';
 import { RetroPhase } from '../types';
 import { ThemeProvider } from '../context/ThemeContext';
+import { exportSessionToPdf } from '../utils/sessionExport';
 
 // Mock Lucide icons to avoid rendering complexities in unit tests
 vi.mock('lucide-react', () => ({
@@ -15,7 +16,12 @@ vi.mock('lucide-react', () => ({
     Palette: () => <div data-testid="icon-palette" />,
     History: () => <div data-testid="icon-history" />,
     CheckCircle2: () => <div data-testid="icon-check" />,
-    AlertCircle: () => <div data-testid="icon-alert" />
+    AlertCircle: () => <div data-testid="icon-alert" />,
+    FileDown: () => <div data-testid="icon-file-down" />
+}));
+
+vi.mock('../utils/sessionExport', () => ({
+    exportSessionToPdf: vi.fn()
 }));
 
 // Mock Timer component
@@ -106,5 +112,13 @@ describe('BoardHeader component', () => {
         const sessionWithTimer = { ...mockSession, brainstormTimerEndsAt: Date.now() + 60000 };
         renderWithTheme(<BoardHeader {...defaultProps} session={sessionWithTimer} />);
         expect(screen.getByTestId('timer')).toBeDefined();
+    });
+
+    it('exports the visible session as PDF', () => {
+        renderWithTheme(<BoardHeader {...defaultProps} />);
+
+        fireEvent.click(screen.getByTitle('Export session as PDF'));
+
+        expect(exportSessionToPdf).toHaveBeenCalledWith(mockSession, mockParticipants);
     });
 });

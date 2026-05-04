@@ -6,6 +6,7 @@
 - `components/Home.tsx`: entry point to create/join retros
 - `components/RetroBoard.tsx`: main session orchestration
 - `components/*Board*.tsx`: phase-specific UI
+- `utils/sessionExport.ts`: browser-side PDF download for the visible session data
 - `services/geminiService.ts`: client-side AI socket wrapper
 - `server/index.js`: socket lifecycle, session updates, AI grouping
 - `server/routes/auth.js`: login/register/password reset
@@ -27,6 +28,7 @@ The session object is the central contract. Be careful when changing:
 - `themes`
 - `currentThemeIndex`
 - `adminId`
+- `createdAt`
 - timer fields
 
 If this shape changes, update frontend and backend together.

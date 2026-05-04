@@ -57,6 +57,7 @@ export interface SessionState {
   actions?: Action[];
   currentThemeIndex: number;
   adminId: string;
+  createdAt?: string;
   brainstormTimerEndsAt?: number | null;
   brainstormTimerDuration?: number;
   defaultThemeId?: string;

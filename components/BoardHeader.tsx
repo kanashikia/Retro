@@ -1,10 +1,11 @@
 
 import React from 'react';
-import { LayoutDashboard, Users, Sparkles, ChevronRight, Copy, LogOut, AlertCircle, Palette, History, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, Users, Sparkles, ChevronRight, Copy, LogOut, AlertCircle, Palette, History, CheckCircle2, FileDown } from 'lucide-react';
 import { SessionState, User, RetroPhase } from '../types';
 import Timer from './Timer';
 import { useTheme } from '../context/ThemeContext';
 import { themes } from '../themes';
+import { exportSessionToPdf } from '../utils/sessionExport';
 
 interface Props {
   session: SessionState;
@@ -237,6 +238,13 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
             )}
           </div>
         )}
+        <button
+          onClick={() => exportSessionToPdf(session, participants)}
+          className="p-2.5 hover:bg-secondary rounded-xl text-text-muted hover:text-text transition-colors border border-transparent hover:border-border"
+          title="Export session as PDF"
+        >
+          <FileDown className="w-6 h-6" />
+        </button>
         <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("Link copied!"); }} className="p-2.5 hover:bg-secondary rounded-xl text-text-muted hover:text-text transition-colors border border-transparent hover:border-border" title="Copy share link"><Copy className="w-6 h-6" /></button>
         <button onClick={() => {
           if (currentUser.isAdmin) {

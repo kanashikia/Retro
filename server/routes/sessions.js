@@ -92,7 +92,11 @@ router.get('/:sessionId', protect, async (req, res) => {
         const sessionData = typeof session.data === 'string'
             ? JSON.parse(session.data)
             : session.data;
-        res.json({ ...sessionData, status: session.status });
+        res.json({
+            ...sessionData,
+            status: session.status,
+            createdAt: session.createdAt?.toISOString?.() || sessionData.createdAt
+        });
     } catch (error) {
         res.status(500).json({ message: error.message });
     }

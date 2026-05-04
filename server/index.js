@@ -184,6 +184,11 @@ const emitSessionUpdateForRoom = (sessionId, sessionData, status) => {
     }
 };
 
+const buildSessionDataWithMetadata = (session, sessionData) => ({
+    ...sessionData,
+    createdAt: session?.createdAt?.toISOString?.() || sessionData?.createdAt
+});
+
 // sanitizeUser and verifyAdminTokenForUser moved to sessionHelper.js
 
 // applyParticipantVotingUpdate moved to sessionHelper.js
@@ -309,7 +314,10 @@ io.on('connection', (socket) => {
             let session = await Session.findOne({ where: { sessionId } });
 
             if (session) {
-                const sessionData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
+                const sessionData = buildSessionDataWithMetadata(
+                    session,
+                    typeof session.data === 'string' ? JSON.parse(session.data) : session.data
+                );
                 const isAdminForSession = !!adminUser && String(sessionData?.adminId) === String(adminUser.id);
                 const joinedUser = isAdminForSession ? adminUser : { ...safeUser, isAdmin: false };
 
@@ -375,7 +383,7 @@ io.on('connection', (socket) => {
 
                     console.log(`User ${joinedUser.name} (${socket.id}) joined session room: "${sessionId}" | Global users in session: ${await pubClient.hLen(`session:${sessionId}:participants`)}`);
 
-                    socket.emit('session-updated', buildVisibleSessionForUser(defaultData, joinedUser));
+                    socket.emit('session-updated', buildVisibleSessionForUser(buildSessionDataWithMetadata(newSession, defaultData), joinedUser));
                     if (typeof callback === 'function') {
                         callback({ user: joinedUser, participantToken: null });
                     }
@@ -447,7 +455,7 @@ io.on('connection', (socket) => {
 
             // Ensure we are merging properly
             const existingData = session ? (typeof session.data === 'string' ? JSON.parse(session.data) : session.data) : {};
-            const updatedData = { ...existingData, ...sessionData, id: sessionId };
+            const updatedData = buildSessionDataWithMetadata(session, { ...existingData, ...sessionData, id: sessionId });
 
             if (!isAdmin) {
                 updatedData.adminId = existingData?.adminId;
@@ -517,7 +525,10 @@ io.on('connection', (socket) => {
             const session = await Session.findOne({ where: { sessionId } });
             if (!session) return;
 
-            const sessionData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
+            const sessionData = buildSessionDataWithMetadata(
+                session,
+                typeof session.data === 'string' ? JSON.parse(session.data) : session.data
+            );
             if (sessionData.phase === 'BRAINSTORM') return;
 
             const tickets = Array.isArray(sessionData.tickets) ? sessionData.tickets : [];
