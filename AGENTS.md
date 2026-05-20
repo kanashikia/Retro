@@ -12,8 +12,8 @@ Retro is a full-stack retrospective app:
 
 Before editing, identify which layer you are touching:
 
-- UI and routes: `components/`, `App.tsx`
-- client services and shared types: `services/`, `types.ts`
+- UI and routes: `src/components/`, `src/App.tsx`
+- client services and shared types: `src/services/`, `src/types.ts`
 - socket/session logic: `server/index.js`, `server/utils/`
 - auth/email: `server/routes/`, `server/services/`
 - persistence: `server/models/`, `server/db.js`

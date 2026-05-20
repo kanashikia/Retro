@@ -21,10 +21,10 @@ interface Props {
 }
 
 const getGroupMinWidth = (groupCount: number) => {
-  if (groupCount <= 2) return 320;
-  if (groupCount <= 4) return 280;
-  if (groupCount <= 6) return 240;
-  return 210;
+  if (groupCount <= 2) return 640;
+  if (groupCount <= 4) return 560;
+  if (groupCount <= 6) return 480;
+  return 420;
 };
 
 const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onToggleReaction, onRegenerate, isRegenerating }) => {
@@ -406,7 +406,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
       {/* Wrapping columns */}
       <div
-        className="grid items-start gap-4 pb-4"
+        className="grid items-start gap-4 pb-4 w-full max-w-[75%] mx-auto lg:max-w-none"
         style={{
           gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${groupMinWidth}px), 1fr))`,
         }}

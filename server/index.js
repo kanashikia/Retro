@@ -161,7 +161,22 @@ const sessionToSockets = new Map();
 const getParticipants = async (sessionId) => {
     try {
         const userJsonList = await pubClient.hVals(`session:${sessionId}:participants`);
-        return userJsonList.map(json => JSON.parse(json));
+        const storedParticipants = userJsonList.map(json => JSON.parse(json));
+
+        // Get all active sockets in the room across the entire Socket.io cluster
+        const activeSockets = await io.in(sessionId).fetchSockets();
+        const activeUserIds = new Set(activeSockets.map(s => s.data?.userId).filter(Boolean));
+
+        const activeParticipants = [];
+        for (const participant of storedParticipants) {
+            if (activeUserIds.has(participant.id)) {
+                activeParticipants.push(participant);
+            } else {
+                // Prune ghost participants from Redis hash
+                await pubClient.hDel(`session:${sessionId}:participants`, participant.id);
+            }
+        }
+        return activeParticipants;
     } catch (error) {
         console.error('Error fetching participants from Redis:', error);
         return [];
@@ -330,6 +345,7 @@ io.on('connection', (socket) => {
 
                 socket.join(sessionId);
                 socketToUser.set(socket.id, { user: joinedUser, sessionId });
+                socket.data.userId = joinedUser.id; // Share on socket.data for cluster presence check
 
                 if (!sessionToSockets.has(sessionId)) {
                     sessionToSockets.set(sessionId, new Set());
@@ -373,6 +389,7 @@ io.on('connection', (socket) => {
 
                     socket.join(sessionId);
                     socketToUser.set(socket.id, { user: joinedUser, sessionId });
+                    socket.data.userId = joinedUser.id; // Share on socket.data for cluster presence check
 
                     if (!sessionToSockets.has(sessionId)) {
                         sessionToSockets.set(sessionId, new Set());
@@ -783,7 +800,6 @@ ${JSON.stringify(promptItems)}
     });
 
     socket.on('disconnect', async () => {
-
         const userData = socketToUser.get(socket.id);
         if (userData) {
             const { sessionId } = userData;

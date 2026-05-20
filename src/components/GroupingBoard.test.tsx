@@ -104,4 +104,21 @@ describe('GroupingBoard', () => {
       expect(screen.getByText(baseSession.tickets[0].text).className).toContain('whitespace-pre-wrap');
     });
   });
+
+  it('renders all groups/themes open by default', () => {
+    render(
+      <GroupingBoard
+        session={baseSession as any}
+        currentUser={{ id: 'admin-1', name: 'Admin', isAdmin: true, votesRemaining: 0 } as any}
+        onUpdateSession={vi.fn()}
+        onToggleReaction={vi.fn()}
+      />
+    );
+
+    // Theme A has a ticket, and it should be visible since it is open by default
+    expect(screen.getByText(baseSession.tickets[0].text)).toBeInTheDocument();
+
+    // Theme B has 0 tickets, and its "Drop here" placeholder should be visible since it is open by default
+    expect(screen.getByText('Drop here')).toBeInTheDocument();
+  });
 });

@@ -6,8 +6,8 @@ AI grouping uses Gemini through the backend only.
 
 Relevant files:
 
-- `components/RetroBoard.tsx`
-- `services/geminiService.ts`
+- `src/components/RetroBoard.tsx`
+- `src/services/geminiService.ts`
 - `server/index.js`
 
 ## Constraints

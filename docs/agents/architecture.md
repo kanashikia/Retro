@@ -2,12 +2,12 @@
 
 ## Main Structure
 
-- `App.tsx`: top-level routes
-- `components/Home.tsx`: entry point to create/join retros
-- `components/RetroBoard.tsx`: main session orchestration
-- `components/*Board*.tsx`: phase-specific UI
-- `utils/sessionExport.ts`: browser-side PDF download for the visible session data
-- `services/geminiService.ts`: client-side AI socket wrapper
+- `src/App.tsx`: top-level routes
+- `src/components/Home.tsx`: entry point to create/join retros
+- `src/components/RetroBoard.tsx`: main session orchestration
+- `src/components/*Board*.tsx`: phase-specific UI
+- `src/utils/sessionExport.ts`: browser-side PDF download for the visible session data
+- `src/services/geminiService.ts`: client-side AI socket wrapper
 - `server/index.js`: socket lifecycle, session updates, AI grouping
 - `server/routes/auth.js`: login/register/password reset
 - `server/db.js`: Sequelize connection and sync

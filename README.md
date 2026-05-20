@@ -8,7 +8,6 @@
 - **✨ AI-Powered Grouping**: Integrated with **Google Gemini** to automatically categorize hundreds of tickets into logical themes in seconds.
 - **Democratic Voting**: Team members vote on the most critical themes to ensure the most important topics get debated.
 - **Structured Discussion**: A focused mode to walk through themes one by one, sorted by priority.
-- **Structured Discussion**: A focused mode to walk through themes one by one, sorted by priority.
 - **Seamless Joining**: No accounts required—admins create a session and share a link to let anyone join instantly.
 - **🔒 Secure Authentication**: Includes admin registration, login, and secure password reset via email.
 
