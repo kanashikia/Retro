@@ -171,16 +171,49 @@ const socketToUser = new Map();
 // Local tracking for efficient filtered broadcasting
 const sessionToSockets = new Map();
 
-// Per-session cooldown for expensive AI operations: `${op}:${sessionId}` -> lastCalledAt ms
-const aiOpLastCall = new Map();
-const AI_COOLDOWN_MS = 30_000;
+// Per-session rate limit for expensive AI operations.
+// `group`: up to 3 calls in a 30s burst window that opens on the FIRST call;
+// once the window closes (or the 3 tokens are spent), only one call per 30s.
+// No cumul: unused burst tokens expire with the window, and the steady-state
+// cooldown does not stockpile — long inactivity gives a single free call,
+// not a backlog. `icebreaker`: no burst, plain 30s cooldown (unchanged).
+// State is in-memory per node; acceptable trade-off.
+const aiOpLastCall = new Map(); // key -> { burstRemaining, burstExpiresAt, lastCallAt }
+const AI_LIMITS = {
+    group: { burst: 3, burstWindowMs: 30_000, cooldownMs: 30_000 },
+    icebreaker: { burst: 0, burstWindowMs: 0, cooldownMs: 30_000 }
+};
 const checkAiCooldown = (op, sessionId) => {
+    const cfg = AI_LIMITS[op] ?? { burst: 0, burstWindowMs: 0, cooldownMs: 30_000 };
     const key = `${op}:${sessionId}`;
-    const last = aiOpLastCall.get(key) ?? 0;
-    const remaining = AI_COOLDOWN_MS - (Date.now() - last);
-    if (remaining > 0) return Math.ceil(remaining / 1000);
-    aiOpLastCall.set(key, Date.now());
-    return 0;
+    const now = Date.now();
+    const entry = aiOpLastCall.get(key) ?? { burstRemaining: cfg.burst, burstExpiresAt: 0, lastCallAt: 0 };
+
+    // Open burst window on the very first call for this session.
+    if (entry.lastCallAt === 0 && cfg.burst > 0) {
+        entry.burstExpiresAt = now + cfg.burstWindowMs;
+    }
+
+    // Burst path: tokens left AND window still open.
+    if (entry.burstRemaining > 0 && now < entry.burstExpiresAt) {
+        entry.burstRemaining -= 1;
+        entry.lastCallAt = now;
+        aiOpLastCall.set(key, entry);
+        return 0;
+    }
+
+    // Burst expired or exhausted — invalidate any leftover tokens (no cumul).
+    entry.burstRemaining = 0;
+
+    // Steady state: flat 30s gap from the last allowed call.
+    const remaining = cfg.cooldownMs - (now - entry.lastCallAt);
+    if (remaining <= 0) {
+        entry.lastCallAt = now;
+        aiOpLastCall.set(key, entry);
+        return 0;
+    }
+    aiOpLastCall.set(key, entry);
+    return Math.ceil(remaining / 1000);
 };
 
 // Redis-backed participant state (Global across all instances)
