@@ -808,13 +808,15 @@ ${JSON.stringify(promptItems)}
                 return typeof callback === 'function' && callback({ error: 'No participants in session yet.' });
             }
 
-            const names = participants.map(p => p.name);
+            const names = participants.map(p =>
+                p.name.replace(/[\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 64)
+            );
             const n = names.length;
 
             const prompt = `Generate ${n} fun and diverse icebreaker questions for a team meeting. One unique question per person.
 Make them light-hearted, inclusive, and suitable for a professional setting.
 Mix question types: favorite things, hypothetical scenarios, would-you-rather, travel & culture, childhood memories, superpowers, food.
-Team members: ${names.join(', ')}
+Team members: ${names.map(name => `"${name.replace(/"/g, '')}"`).join(', ')}
 Return a JSON object with a "questions" array of exactly ${n} strings (one per team member, in the same order).`;
 
             let questions = null;
