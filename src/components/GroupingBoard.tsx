@@ -10,11 +10,11 @@ import {
   getTicketTextClass
 } from '../utils/colors';
 import ColumnMarker from './ColumnMarker';
+import { socket } from '../services/socket';
 
 interface Props {
   session: SessionState;
   currentUser: User;
-  onUpdateSession: (s: SessionState) => void;
   onToggleReaction: (ticketId: string, emoji: string) => void;
   onRegenerate?: () => void;
   isRegenerating?: boolean;
@@ -27,7 +27,7 @@ const getGroupMinWidth = (groupCount: number) => {
   return 420;
 };
 
-const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession, onToggleReaction, onRegenerate, isRegenerating }) => {
+const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction, onRegenerate, isRegenerating }) => {
   const [isAddingTheme, setIsAddingTheme] = useState(false);
   const [newThemeName, setNewThemeName] = useState("");
   const [editingThemeId, setEditingThemeId] = useState<string | null>(null);
@@ -38,11 +38,8 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
   const [manuallyCollapsedTicketIds, setManuallyCollapsedTicketIds] = useState<Set<string>>(new Set());
 
   const moveTicket = useCallback((ticketId: string, themeId: string | undefined) => {
-    onUpdateSession({
-      ...session,
-      tickets: (session.tickets || []).map(t => t.id === ticketId ? { ...t, themeId } : t)
-    });
-  }, [session, onUpdateSession]);
+    socket.emit('grouping:move-ticket', { sessionId: session.id, ticketId, themeId: themeId ?? null });
+  }, [session.id]);
 
   const addTheme = () => {
     if (!newThemeName.trim()) return;
@@ -53,20 +50,13 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
       votes: 0,
       voterIds: []
     };
-    onUpdateSession({
-      ...session,
-      themes: [...(session.themes || []), newTheme]
-    });
+    socket.emit('grouping:create-theme', { sessionId: session.id, theme: newTheme });
     setNewThemeName("");
     setIsAddingTheme(false);
   };
 
   const deleteTheme = (themeId: string) => {
-    onUpdateSession({
-      ...session,
-      themes: (session.themes || []).filter(t => t.id !== themeId),
-      tickets: (session.tickets || []).map(t => t.themeId === themeId ? { ...t, themeId: undefined } : t)
-    });
+    socket.emit('grouping:delete-theme', { sessionId: session.id, themeId });
   };
 
   const startEditing = (theme: ThemeGroup) => {
@@ -76,10 +66,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onUpdateSession,
 
   const saveThemeName = () => {
     if (!editingThemeId || !editThemeName.trim()) return;
-    onUpdateSession({
-      ...session,
-      themes: (session.themes || []).map(t => t.id === editingThemeId ? { ...t, name: editThemeName.trim() } : t)
-    });
+    socket.emit('grouping:rename-theme', { sessionId: session.id, themeId: editingThemeId, name: editThemeName.trim() });
     setEditingThemeId(null);
   };
 

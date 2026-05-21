@@ -3,6 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 import VotingBoard from './VotingBoard';
 import { RetroPhase } from '../types';
 
+const emitMock = vi.fn();
+vi.mock('../services/socket', () => ({
+    socket: { emit: (...args: any[]) => emitMock(...args) }
+}));
+
 describe('VotingBoard', () => {
     const mockSession = {
         id: 'session-1',
@@ -31,7 +36,6 @@ describe('VotingBoard', () => {
                 session={mockSession as any}
                 currentUser={currentUser as any}
                 participants={participants as any}
-                onUpdateSession={vi.fn()}
                 onUpdateUser={vi.fn()}
                 onToggleReaction={vi.fn()}
             />
@@ -40,17 +44,16 @@ describe('VotingBoard', () => {
         expect(screen.getByText('3 votes left')).toBeDefined();
     });
 
-    it('calls onUpdateSession and onUpdateUser when voting', () => {
+    it('emits add-vote and calls onUpdateUser when voting', () => {
         const currentUser = { id: 'user1', name: 'User 1', isAdmin: false, votesRemaining: 3 };
-        const onUpdateSession = vi.fn();
         const onUpdateUser = vi.fn();
+        emitMock.mockClear();
 
         render(
             <VotingBoard
                 session={mockSession as any}
                 currentUser={currentUser as any}
                 participants={participants as any}
-                onUpdateSession={onUpdateSession}
                 onUpdateUser={onUpdateUser}
                 onToggleReaction={vi.fn()}
             />
@@ -58,21 +61,20 @@ describe('VotingBoard', () => {
 
         fireEvent.click(screen.getByText('Vote'));
 
-        expect(onUpdateSession).toHaveBeenCalled();
+        expect(emitMock).toHaveBeenCalledWith('voting:add-vote', { sessionId: 'session-1', themeId: 'theme1' });
         expect(onUpdateUser).toHaveBeenCalledWith(expect.objectContaining({ votesRemaining: 2 }));
     });
 
-    it('calls onUpdateSession and onUpdateUser when removing a vote', () => {
+    it('emits remove-vote and calls onUpdateUser when removing a vote', () => {
         const currentUser = { id: 'user1', name: 'User 1', isAdmin: false, votesRemaining: 3 };
-        const onUpdateSession = vi.fn();
         const onUpdateUser = vi.fn();
+        emitMock.mockClear();
 
         render(
             <VotingBoard
                 session={mockSession as any}
                 currentUser={currentUser as any}
                 participants={participants as any}
-                onUpdateSession={onUpdateSession}
                 onUpdateUser={onUpdateUser}
                 onToggleReaction={vi.fn()}
             />
@@ -81,7 +83,7 @@ describe('VotingBoard', () => {
         const removeButton = screen.getByTitle('Remove a vote');
         fireEvent.click(removeButton);
 
-        expect(onUpdateSession).toHaveBeenCalled();
+        expect(emitMock).toHaveBeenCalledWith('voting:remove-vote', { sessionId: 'session-1', themeId: 'theme1' });
         expect(onUpdateUser).toHaveBeenCalledWith(expect.objectContaining({ votesRemaining: 4 }));
     });
 
@@ -92,7 +94,6 @@ describe('VotingBoard', () => {
                 session={mockSession as any}
                 currentUser={currentUser as any}
                 participants={participants as any}
-                onUpdateSession={vi.fn()}
                 onUpdateUser={vi.fn()}
                 onToggleReaction={vi.fn()}
             />
@@ -109,7 +110,6 @@ describe('VotingBoard', () => {
                 session={mockSession as any}
                 currentUser={adminUser as any}
                 participants={participants as any}
-                onUpdateSession={vi.fn()}
                 onUpdateUser={vi.fn()}
                 onToggleReaction={vi.fn()}
             />

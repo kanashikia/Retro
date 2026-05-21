@@ -6,6 +6,7 @@ import Timer from './Timer';
 import { useTheme } from '../context/ThemeContext';
 import { themes } from '../themes';
 import { exportSessionToPdf } from '../utils/sessionExport';
+import { socket } from '../services/socket';
 
 interface Props {
   session: SessionState;
@@ -15,7 +16,6 @@ interface Props {
   error: string | null;
   onNextPhase: () => void;
   onReset: () => void;
-  onUpdateSession: (updates: Partial<SessionState>) => void;
   previousActions?: any[];
 }
 
@@ -34,7 +34,7 @@ const getUserColor = (name: string) => {
   return colors[Math.abs(hash) % colors.length];
 };
 
-const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLoading, error, onNextPhase, onReset, onUpdateSession, previousActions = [] }) => {
+const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLoading, error, onNextPhase, onReset, previousActions = [] }) => {
   const { currentTheme, setTheme, isOverridden, resetToDefault, sessionDefaultThemeId } = useTheme();
   const [isThemeOpen, setIsThemeOpen] = React.useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = React.useState(false);
@@ -141,7 +141,7 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
                         onClick={(e) => {
                           e.stopPropagation();
                           if (confirm(`Set "${theme.name}" as the default for everyone?`)) {
-                            onUpdateSession({ defaultThemeId: theme.id });
+                            socket.emit('session:set-default-theme', { sessionId: session.id, themeId: theme.id });
                           }
                         }}
                         className="opacity-0 group-hover/item:opacity-100 p-1 text-xs text-text-muted hover:text-primary transition-all"

@@ -126,7 +126,12 @@ app.use((req, res) => {
 
 // Redis Setup
 const redisUrl = process.env.REDIS_URL || 'redis://localhost:6379';
-const pubClient = createClient({ url: redisUrl });
+const pubClient = createClient({
+    url: redisUrl,
+    socket: {
+        reconnectStrategy: (retries) => Math.min(retries * 200, 5000)
+    }
+});
 const subClient = pubClient.duplicate();
 
 pubClient.on('error', (err) => console.error('Redis Pub Client Error', err));
@@ -210,6 +215,40 @@ const emitSessionUpdateForRoom = (sessionId, sessionData, status) => {
         io.to(socketId).emit('session-updated', buildVisibleSessionForUser(sessionData, data.user, status));
     }
 };
+
+async function authorizeActor(socketId, rawSessionId, { requireAdmin = false } = {}) {
+    const actor = socketToUser.get(socketId)?.user;
+    if (!actor?.id) return { error: 'Missing actor' };
+    if (!rawSessionId) return { error: 'Missing sessionId' };
+    const sessionId = String(rawSessionId).trim();
+
+    const session = await Session.findOne({ where: { sessionId } });
+    if (!session) return { error: 'Session not found' };
+
+    const isAdmin = !!(actor.isAdmin && String(session.adminId) === String(actor.id));
+    if (requireAdmin && !isAdmin) return { error: 'Unauthorized' };
+
+    if (!isAdmin) {
+        const participants = await getParticipants(sessionId);
+        const isParticipant = participants.some(p => String(p.id) === String(actor.id));
+        if (!isParticipant) return { error: 'Unauthorized' };
+    }
+
+    return { actor, session, sessionId, isAdmin };
+}
+
+async function mutateSession(sessionId, session, mutator) {
+    const existingData = typeof session.data === 'string' ? JSON.parse(session.data) : (session.data || {});
+    const updatedData = mutator(existingData);
+    if (!updatedData) return { error: 'No change' };
+    const finalData = buildSessionDataWithMetadata(session, { ...updatedData, id: sessionId });
+    await Session.upsert({ sessionId, adminId: session.adminId, data: finalData });
+    emitSessionUpdateForRoom(sessionId, finalData, session.status);
+    return { success: true, data: finalData };
+}
+
+const cap = (val, max) => String(val ?? '').slice(0, max);
+const isStr = (v, max) => typeof v === 'string' && v.length > 0 && v.length <= max;
 
 const sanitizeIceBreakerState = (raw) => {
     if (raw === undefined || raw === null) return raw;
@@ -485,6 +524,7 @@ io.on('connection', (socket) => {
         }
 
         const sessionId = sessionData.id.trim();
+        console.warn(`[Deprecated] update-session called by ${actor.id} on ${sessionId}. Migrate to atomic events.`);
 
         try {
             console.log(`Processing update-session for ${sessionId} from user ${actor.id}`);
@@ -571,6 +611,453 @@ io.on('connection', (socket) => {
             console.log(`Session ${sessionId} updated and broadcasted with per-user visibility. New theme count: ${updatedData.themes?.length || 0}`);
         } catch (error) {
             console.error('Error in update-session:', error);
+        }
+    });
+
+    // ===== Atomic event handlers (replace blanket update-session) =====
+
+    const VALID_COLUMNS = new Set(['What went well', 'What went less well', 'What do we want to try next', 'What puzzles us']);
+    const VALID_PHASES = new Set(['ICE_BREAKER', 'BRAINSTORM', 'GROUPING', 'VOTING', 'DISCUSSION']);
+
+    const cb = (callback, payload) => { if (typeof callback === 'function') callback(payload); };
+
+    // --- BRAINSTORM ---
+
+    socket.on('brainstorm:add-ticket', async ({ sessionId, ticket }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            if (!ticket || typeof ticket !== 'object') return cb(callback, { error: 'Invalid ticket' });
+
+            const safeTicket = {
+                id: cap(ticket.id, 64),
+                text: cap(ticket.text, 2000),
+                column: cap(ticket.column, 64),
+                author: cap(ticket.author, 64),
+                authorId: String(auth.actor.id),
+                votes: 0,
+                voterIds: []
+            };
+            if (!safeTicket.id || !safeTicket.text || !VALID_COLUMNS.has(safeTicket.column)) {
+                return cb(callback, { error: 'Invalid ticket fields' });
+            }
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'BRAINSTORM') return null;
+                return { ...data, tickets: [...(data.tickets || []), safeTicket] };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[brainstorm:add-ticket]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('brainstorm:edit-ticket', async ({ sessionId, ticketId, text }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            const id = cap(ticketId, 64);
+            const newText = cap(text, 2000);
+            if (!id || !newText) return cb(callback, { error: 'Invalid fields' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const tickets = data.tickets || [];
+                const t = tickets.find(x => x.id === id);
+                if (!t) return null;
+                if (!auth.isAdmin && String(t.authorId) !== String(auth.actor.id)) return null;
+                return { ...data, tickets: tickets.map(x => x.id === id ? { ...x, text: newText } : x) };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[brainstorm:edit-ticket]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('brainstorm:delete-ticket', async ({ sessionId, ticketId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            const id = cap(ticketId, 64);
+            if (!id) return cb(callback, { error: 'Invalid ticketId' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const tickets = data.tickets || [];
+                const t = tickets.find(x => x.id === id);
+                if (!t) return null;
+                if (!auth.isAdmin && String(t.authorId) !== String(auth.actor.id)) return null;
+                return { ...data, tickets: tickets.filter(x => x.id !== id) };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[brainstorm:delete-ticket]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('brainstorm:set-timer-duration', async ({ sessionId, duration }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+            const d = Number(duration);
+            if (!Number.isFinite(d) || d < 1 || d > 60) return cb(callback, { error: 'Invalid duration' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => ({ ...data, brainstormTimerDuration: d }));
+            cb(callback, res);
+        } catch (e) {
+            console.error('[brainstorm:set-timer-duration]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('brainstorm:start-timer', async ({ sessionId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const duration = Number(data.brainstormTimerDuration) || 10;
+                return { ...data, brainstormTimerEndsAt: Date.now() + duration * 60 * 1000 };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[brainstorm:start-timer]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('brainstorm:reset-timer', async ({ sessionId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => ({ ...data, brainstormTimerEndsAt: null }));
+            cb(callback, res);
+        } catch (e) {
+            console.error('[brainstorm:reset-timer]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // --- GROUPING ---
+
+    socket.on('grouping:move-ticket', async ({ sessionId, ticketId, themeId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            const id = cap(ticketId, 64);
+            const tId = themeId == null ? undefined : cap(themeId, 64);
+            if (!id) return cb(callback, { error: 'Invalid ticketId' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const tickets = data.tickets || [];
+                if (!tickets.some(t => t.id === id)) return null;
+                if (tId !== undefined && !(data.themes || []).some(t => t.id === tId)) return null;
+                return { ...data, tickets: tickets.map(t => t.id === id ? { ...t, themeId: tId } : t) };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[grouping:move-ticket]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('grouping:create-theme', async ({ sessionId, theme }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            if (!theme || typeof theme !== 'object') return cb(callback, { error: 'Invalid theme' });
+
+            const safeTheme = {
+                id: cap(theme.id, 64),
+                name: cap(theme.name, 200),
+                description: cap(theme.description, 500),
+                votes: 0,
+                voterIds: []
+            };
+            if (!safeTheme.id || !safeTheme.name) return cb(callback, { error: 'Invalid theme fields' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const themes = data.themes || [];
+                if (themes.some(t => t.id === safeTheme.id)) return null;
+                if (themes.length >= 50) return null;
+                return { ...data, themes: [...themes, safeTheme] };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[grouping:create-theme]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('grouping:delete-theme', async ({ sessionId, themeId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            const id = cap(themeId, 64);
+            if (!id) return cb(callback, { error: 'Invalid themeId' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const themes = data.themes || [];
+                if (!themes.some(t => t.id === id)) return null;
+                return {
+                    ...data,
+                    themes: themes.filter(t => t.id !== id),
+                    tickets: (data.tickets || []).map(t => t.themeId === id ? { ...t, themeId: undefined } : t)
+                };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[grouping:delete-theme]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('grouping:rename-theme', async ({ sessionId, themeId, name }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            const id = cap(themeId, 64);
+            const newName = cap(name, 200);
+            if (!id || !newName) return cb(callback, { error: 'Invalid fields' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const themes = data.themes || [];
+                if (!themes.some(t => t.id === id)) return null;
+                return { ...data, themes: themes.map(t => t.id === id ? { ...t, name: newName } : t) };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[grouping:rename-theme]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // --- VOTING ---
+
+    socket.on('voting:add-vote', async ({ sessionId, themeId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            const id = cap(themeId, 64);
+            if (!id) return cb(callback, { error: 'Invalid themeId' });
+
+            const actorId = String(auth.actor.id);
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const themes = data.themes || [];
+                if (!themes.some(t => t.id === id)) return null;
+                const used = themes.reduce((acc, t) => acc + (t.voterIds || []).filter(v => String(v) === actorId).length, 0);
+                if (used >= 5) return null;
+                return {
+                    ...data,
+                    themes: themes.map(t => t.id === id ? {
+                        ...t,
+                        votes: (t.votes || 0) + 1,
+                        voterIds: [...(t.voterIds || []), actorId]
+                    } : t)
+                };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[voting:add-vote]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('voting:remove-vote', async ({ sessionId, themeId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            const id = cap(themeId, 64);
+            if (!id) return cb(callback, { error: 'Invalid themeId' });
+
+            const actorId = String(auth.actor.id);
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const themes = data.themes || [];
+                const theme = themes.find(t => t.id === id);
+                if (!theme) return null;
+                const voterIds = [...(theme.voterIds || [])];
+                const idx = voterIds.findLastIndex(v => String(v) === actorId);
+                if (idx === -1) return null;
+                voterIds.splice(idx, 1);
+                return {
+                    ...data,
+                    themes: themes.map(t => t.id === id ? {
+                        ...t,
+                        votes: Math.max(0, (t.votes || 0) - 1),
+                        voterIds
+                    } : t)
+                };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[voting:remove-vote]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // --- DISCUSSION ---
+
+    socket.on('discussion:add-action', async ({ sessionId, action }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            if (!action || typeof action !== 'object') return cb(callback, { error: 'Invalid action' });
+
+            const safe = {
+                id: cap(action.id, 64),
+                text: cap(action.text, 1000),
+                assigneeId: cap(action.assigneeId, 64),
+                assigneeName: cap(action.assigneeName, 64)
+            };
+            if (!safe.id || !safe.text || !safe.assigneeId) return cb(callback, { error: 'Invalid action fields' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const actions = data.actions || [];
+                if (actions.some(a => a.id === safe.id)) return null;
+                if (actions.length >= 200) return null;
+                return { ...data, actions: [...actions, safe] };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[discussion:add-action]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('discussion:delete-action', async ({ sessionId, actionId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            const id = cap(actionId, 64);
+            if (!id) return cb(callback, { error: 'Invalid actionId' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const actions = data.actions || [];
+                if (!actions.some(a => a.id === id)) return null;
+                return { ...data, actions: actions.filter(a => a.id !== id) };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[discussion:delete-action]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('discussion:set-current-theme', async ({ sessionId, index }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+            const i = Number(index);
+            if (!Number.isInteger(i) || i < 0) return cb(callback, { error: 'Invalid index' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const max = (data.themes || []).length - 1;
+                if (max < 0 || i > max) return null;
+                return { ...data, currentThemeIndex: i };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[discussion:set-current-theme]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // --- SESSION-LEVEL ---
+
+    socket.on('session:set-default-theme', async ({ sessionId, themeId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+            const id = cap(themeId, 64);
+            if (!id) return cb(callback, { error: 'Invalid themeId' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => ({ ...data, defaultThemeId: id }));
+            cb(callback, res);
+        } catch (e) {
+            console.error('[session:set-default-theme]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('session:set-phase', async ({ sessionId, phase, themes, currentThemeIndex }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+            const p = cap(phase, 32);
+            if (!VALID_PHASES.has(p)) return cb(callback, { error: 'Invalid phase' });
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                const next = { ...data, phase: p };
+                if (Array.isArray(themes)) {
+                    const existingIds = new Set((data.themes || []).map(t => t.id));
+                    const reordered = themes
+                        .map(t => (data.themes || []).find(orig => orig.id === t?.id))
+                        .filter(Boolean);
+                    if (reordered.length === (data.themes || []).length && reordered.every(t => existingIds.has(t.id))) {
+                        next.themes = reordered;
+                    }
+                }
+                if (Number.isInteger(currentThemeIndex) && currentThemeIndex >= 0) {
+                    next.currentThemeIndex = currentThemeIndex;
+                }
+                // Reset ready status for everyone when phase changes
+                if (data.phase !== p) {
+                    for (const [sid, sdata] of socketToUser.entries()) {
+                        if (sdata.sessionId === auth.sessionId) {
+                            sdata.user.isReady = false;
+                            socketToUser.set(sid, sdata);
+                        }
+                    }
+                }
+                return next;
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[session:set-phase]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('session:apply-themes', async ({ sessionId, themes, ticketAssignments }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+            if (!Array.isArray(themes)) return cb(callback, { error: 'Invalid themes' });
+            const assignments = (ticketAssignments && typeof ticketAssignments === 'object') ? ticketAssignments : {};
+
+            const safeThemes = themes.slice(0, 50).map(t => {
+                if (!t || typeof t !== 'object') return null;
+                const id = cap(t.id, 64);
+                const name = cap(t.name, 200);
+                if (!id || !name) return null;
+                return {
+                    id,
+                    name,
+                    description: cap(t.description, 500),
+                    votes: 0,
+                    voterIds: []
+                };
+            }).filter(Boolean);
+
+            if (safeThemes.length === 0) return cb(callback, { error: 'No valid themes' });
+
+            const themeIds = new Set(safeThemes.map(t => t.id));
+            const fallbackId = safeThemes[0].id;
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => ({
+                ...data,
+                themes: safeThemes,
+                tickets: (data.tickets || []).map(t => {
+                    const assigned = cap(assignments[t.id], 64);
+                    return { ...t, themeId: themeIds.has(assigned) ? assigned : fallbackId };
+                })
+            }));
+            cb(callback, res);
+        } catch (e) {
+            console.error('[session:apply-themes]', e);
+            cb(callback, { error: e.message });
         }
     });
 

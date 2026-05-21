@@ -13,16 +13,16 @@ import {
 } from '../utils/colors';
 import ColumnMarker from './ColumnMarker';
 import Timer from './Timer';
+import { socket } from '../services/socket';
 
 interface Props {
   session: SessionState;
   currentUser: User;
   participants: User[];
-  onUpdateSession: (s: SessionState) => void;
   onToggleReady: (isReady: boolean) => void;
 }
 
-const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, onUpdateSession, onToggleReady }) => {
+const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, onToggleReady }) => {
   const [activeCol, setActiveCol] = useState<ColumnType | null>(null);
   const [editingTicketId, setEditingTicketId] = useState<string | null>(null);
   const [text, setText] = useState("");
@@ -48,23 +48,20 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
       votes: 0,
       voterIds: []
     };
-    onUpdateSession({ ...session, tickets: [...session.tickets, newTicket] });
+    socket.emit('brainstorm:add-ticket', { sessionId: session.id, ticket: newTicket });
     setText("");
     setActiveCol(null);
   };
 
   const updateTicket = (ticketId: string) => {
     if (!text.trim()) return;
-    const updatedTickets = session.tickets.map(t =>
-      t.id === ticketId ? { ...t, text: text.trim() } : t
-    );
-    onUpdateSession({ ...session, tickets: updatedTickets });
+    socket.emit('brainstorm:edit-ticket', { sessionId: session.id, ticketId, text: text.trim() });
     setText("");
     setEditingTicketId(null);
   };
 
   const deleteTicket = (ticketId: string) => {
-    onUpdateSession({ ...session, tickets: session.tickets.filter(t => t.id !== ticketId) });
+    socket.emit('brainstorm:delete-ticket', { sessionId: session.id, ticketId });
   };
 
   const startEditing = (ticket: Ticket) => {
@@ -82,7 +79,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                 <span className="text-sm font-bold text-text">Brainstorm Timer:</span>
                 <select
                   value={session.brainstormTimerDuration || 10}
-                  onChange={(e) => onUpdateSession({ ...session, brainstormTimerDuration: Number(e.target.value) })}
+                  onChange={(e) => socket.emit('brainstorm:set-timer-duration', { sessionId: session.id, duration: Number(e.target.value) })}
                   className="px-3 py-1.5 bg-background border border-border rounded-lg text-sm font-medium outline-none focus:border-primary text-text"
                 >
                   {[1, 2, 5, 10, 15, 20, 30].map(m => (
@@ -99,18 +96,14 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
               <div className="flex gap-2">
                 {!session.brainstormTimerEndsAt ? (
                   <button
-                    onClick={() => {
-                      const duration = session.brainstormTimerDuration || 10;
-                      const endsAt = Date.now() + duration * 60 * 1000;
-                      onUpdateSession({ ...session, brainstormTimerEndsAt: endsAt });
-                    }}
+                    onClick={() => socket.emit('brainstorm:start-timer', { sessionId: session.id })}
                     className="bg-primary hover:bg-primary-hover text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
                   >
                     Start Timer
                   </button>
                 ) : (
                   <button
-                    onClick={() => onUpdateSession({ ...session, brainstormTimerEndsAt: null })}
+                    onClick={() => socket.emit('brainstorm:reset-timer', { sessionId: session.id })}
                     className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-sm active:scale-95"
                   >
                     Reset Timer

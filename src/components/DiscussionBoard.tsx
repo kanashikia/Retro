@@ -13,16 +13,16 @@ import { Plus, Trash2, CheckCircle2, ChevronLeft, ChevronRight, LayoutDashboard,
 import { v4 as uuidv4 } from 'uuid';
 import ReactionBadge from './ReactionBadge';
 import ReactionPicker from './ReactionPicker';
+import { socket } from '../services/socket';
 
 interface Props {
   session: SessionState;
   currentUser: User;
   participants: User[];
-  onUpdateSession: (s: SessionState) => void;
   onToggleReaction: (ticketId: string, emoji: string) => void;
 }
 
-const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, onUpdateSession, onToggleReaction }) => {
+const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, onToggleReaction }) => {
   const currentTheme = (session.themes || [])[session.currentThemeIndex];
   const [newActionText, setNewActionText] = React.useState('');
   const [selectedAssigneeId, setSelectedAssigneeId] = React.useState('');
@@ -42,15 +42,13 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
       assigneeName: assignee.name
     };
 
-    const updatedActions = [...(session.actions || []), newAction];
-    onUpdateSession({ ...session, actions: updatedActions });
+    socket.emit('discussion:add-action', { sessionId: session.id, action: newAction });
     setNewActionText('');
     setSelectedAssigneeId('');
   };
 
   const handleRemoveAction = (actionId: string) => {
-    const updatedActions = (session.actions || []).filter(a => a.id !== actionId);
-    onUpdateSession({ ...session, actions: updatedActions });
+    socket.emit('discussion:delete-action', { sessionId: session.id, actionId });
   };
 
   if (!currentTheme) return (
@@ -124,7 +122,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
         <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 py-4 border-y border-border bg-surface/50 rounded-2xl md:rounded-[2.5rem]">
           <button
             disabled={session.currentThemeIndex === 0}
-            onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex - 1 })}
+            onClick={() => socket.emit('discussion:set-current-theme', { sessionId: session.id, index: session.currentThemeIndex - 1 })}
             className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-surface border-2 border-border rounded-xl md:rounded-2xl font-black text-text hover:bg-secondary transition-all disabled:opacity-30 shadow-sm active:scale-95 text-xs md:text-sm"
           >
             <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" /> Previous
@@ -134,7 +132,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
           </div>
           <button
             disabled={session.currentThemeIndex === (session.themes || []).length - 1}
-            onClick={() => onUpdateSession({ ...session, currentThemeIndex: session.currentThemeIndex + 1 })}
+            onClick={() => socket.emit('discussion:set-current-theme', { sessionId: session.id, index: session.currentThemeIndex + 1 })}
             className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-primary text-white rounded-xl md:rounded-2xl font-black hover:bg-primary-hover transition-all disabled:opacity-30 shadow-xl shadow-primary/20 active:scale-95 text-xs md:text-sm"
           >
             Next Topic <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />

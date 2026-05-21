@@ -12,6 +12,7 @@ import {
 import ColumnMarker from './ColumnMarker';
 import ReactionBadge from './ReactionBadge';
 import ReactionPicker from './ReactionPicker';
+import { socket } from '../services/socket';
 
 const VOTING_CARD_MIN_WIDTH = 240;
 
@@ -19,12 +20,11 @@ interface Props {
   session: SessionState;
   currentUser: User;
   participants: User[];
-  onUpdateSession: (s: SessionState) => void;
   onUpdateUser: (u: User) => void;
   onToggleReaction: (ticketId: string, emoji: string) => void;
 }
 
-const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUpdateSession, onUpdateUser, onToggleReaction }) => {
+const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUpdateUser, onToggleReaction }) => {
   const [expandedThemes, setExpandedThemes] = useState<Set<string>>(new Set());
   const currentUserId = String(currentUser.id);
 
@@ -35,38 +35,16 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
 
   const handleVote = (themeId: string) => {
     if (currentUser.votesRemaining <= 0) return;
-
-    onUpdateSession({
-        ...session,
-        themes: (session.themes || []).map(t => t.id === themeId ? {
-          ...t,
-          votes: t.votes + 1,
-          voterIds: [...t.voterIds, currentUserId]
-        } : t)
-    });
-
+    socket.emit('voting:add-vote', { sessionId: session.id, themeId });
     onUpdateUser({ ...currentUser, votesRemaining: currentUser.votesRemaining - 1 });
   };
 
   const handleRemoveVote = (themeId: string) => {
     const theme = (session.themes || []).find(t => t.id === themeId);
     if (!theme) return;
-
     const userVoteIndex = (theme.voterIds || []).findLastIndex(id => String(id) === currentUserId);
     if (userVoteIndex === -1) return;
-
-    const newVoterIds = [...theme.voterIds];
-    newVoterIds.splice(userVoteIndex, 1);
-
-    onUpdateSession({
-      ...session,
-      themes: (session.themes || []).map(t => t.id === themeId ? {
-        ...t,
-        votes: Math.max(0, t.votes - 1),
-        voterIds: newVoterIds
-      } : t)
-    });
-
+    socket.emit('voting:remove-vote', { sessionId: session.id, themeId });
     onUpdateUser({ ...currentUser, votesRemaining: currentUser.votesRemaining + 1 });
   };
 

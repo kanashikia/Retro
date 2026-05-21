@@ -55,8 +55,7 @@ describe('BoardHeader component', () => {
         isLoading: false,
         error: null,
         onNextPhase: vi.fn(),
-        onReset: vi.fn(),
-        onUpdateSession: vi.fn()
+        onReset: vi.fn()
     };
 
     const renderWithTheme = (ui) => {

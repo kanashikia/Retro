@@ -4,12 +4,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { RetroPhase, User, SessionState, ThemeGroup } from '../types';
 import { groupTicketsWithAI } from '../services/geminiService';
 import { useTheme } from '../context/ThemeContext';
-import { io } from 'socket.io-client';
-
-const socket = io(undefined, {
-    path: '/socket.io',
-    transports: ['polling', 'websocket']
-});
+import { socket } from '../services/socket';
 
 import BoardHeader from './BoardHeader';
 import PhaseStepper from './PhaseStepper';
@@ -41,13 +36,8 @@ const RetroBoard: React.FC = () => {
         setIsRegenerating(true);
         try {
             const { themes, ticketAssignments } = await groupTicketsWithAI(socket as any, session.id, session.tickets);
-            const updatedSession: SessionState = {
-                ...session,
-                themes: themes.length > 0 ? themes : [{ id: 'misc', name: 'General', description: 'Miscellaneous topics', votes: 0, voterIds: [] }],
-                tickets: session.tickets.map(t => ({ ...t, themeId: ticketAssignments[t.id] || themes[0]?.id || 'misc' }))
-            };
-            setSession(updatedSession);
-            socket.emit('update-session', { sessionData: updatedSession });
+            const safeThemes = themes.length > 0 ? themes : [{ id: 'misc', name: 'General', description: 'Miscellaneous topics', votes: 0, voterIds: [] }];
+            socket.emit('session:apply-themes', { sessionId: session.id, themes: safeThemes, ticketAssignments });
         } catch (e) {
             setError("Error during AI regeneration.");
         } finally {
@@ -244,41 +234,30 @@ const RetroBoard: React.FC = () => {
         const phases = Object.values(RetroPhase);
         const currentIndex = phases.indexOf(session.phase);
 
-        let updatedSession: SessionState | null = null;
-
         if (session.phase === RetroPhase.ICE_BREAKER) {
-            updatedSession = { ...session, phase: RetroPhase.BRAINSTORM };
+            socket.emit('session:set-phase', { sessionId: session.id, phase: RetroPhase.BRAINSTORM });
         } else if (session.phase === RetroPhase.BRAINSTORM) {
             if (session.tickets.length === 0) return setError("Add some cards before grouping!");
             setIsLoading(true);
             try {
                 const { themes, ticketAssignments } = await groupTicketsWithAI(socket as any, session.id, session.tickets);
-                updatedSession = {
-                    ...session,
-                    phase: RetroPhase.GROUPING,
-                    themes: themes.length > 0 ? themes : [{ id: 'misc', name: 'General', description: 'Miscellaneous topics', votes: 0, voterIds: [] }],
-                    tickets: session.tickets.map(t => ({ ...t, themeId: ticketAssignments[t.id] || themes[0]?.id || 'misc' }))
-                };
+                const safeThemes = themes.length > 0 ? themes : [{ id: 'misc', name: 'General', description: 'Miscellaneous topics', votes: 0, voterIds: [] }];
+                socket.emit('session:apply-themes', { sessionId: session.id, themes: safeThemes, ticketAssignments });
+                socket.emit('session:set-phase', { sessionId: session.id, phase: RetroPhase.GROUPING });
             } catch (e) { setError("Error during AI grouping."); }
             finally { setIsLoading(false); }
         } else if (session.phase === RetroPhase.VOTING) {
             const sortedThemes = sortThemesByVotes(session.themes || []);
-            updatedSession = {
-                ...session,
+            socket.emit('session:set-phase', {
+                sessionId: session.id,
                 phase: RetroPhase.DISCUSSION,
                 themes: sortedThemes,
                 currentThemeIndex: 0
-            };
+            });
         } else if (session.phase === RetroPhase.DISCUSSION) {
             handleCloseSession();
-            return;
         } else if (currentIndex < phases.length - 1) {
-            updatedSession = { ...session, phase: phases[currentIndex + 1] };
-        }
-
-        if (updatedSession) {
-            setSession(updatedSession);
-            socket.emit('update-session', { sessionData: updatedSession });
+            socket.emit('session:set-phase', { sessionId: session.id, phase: phases[currentIndex + 1] });
         }
     };
 
@@ -300,16 +279,15 @@ const RetroBoard: React.FC = () => {
 
     const handlePhaseManualChange = (targetPhase: RetroPhase) => {
         if (!session || !isAdmin) return;
-
-        let updatedSession = { ...session, phase: targetPhase };
-
+        const payload: { sessionId: string; phase: RetroPhase; themes?: typeof session.themes; currentThemeIndex?: number } = {
+            sessionId: session.id,
+            phase: targetPhase
+        };
         if (targetPhase === RetroPhase.DISCUSSION) {
-            updatedSession.themes = sortThemesByVotes(session.themes || []);
-            updatedSession.currentThemeIndex = 0;
+            payload.themes = sortThemesByVotes(session.themes || []);
+            payload.currentThemeIndex = 0;
         }
-
-        setSession(updatedSession);
-        socket.emit('update-session', { sessionData: updatedSession });
+        socket.emit('session:set-phase', payload);
     };
 
     if (isJoining && !currentUser) return (
@@ -365,15 +343,14 @@ const RetroBoard: React.FC = () => {
                         handleCloseSession();
                     }
                 }}
-                onUpdateSession={(updates) => socket.emit('update-session', { sessionData: { ...session, ...updates } })}
             />
             <PhaseStepper session={session} currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />
             <main className="flex-1 p-6 lg:p-10 mt-8 overflow-auto">
                 {session.phase === RetroPhase.ICE_BREAKER && <IceBreakerBoard session={session} currentUser={userWithVotes!} participants={participants} isAdmin={!!isAdmin} isGenerating={isGeneratingIceBreaker} onGenerate={handleGenerateIceBreaker} onNext={handleIceBreakerNext} onStartRetro={handleNextPhase} />}
-                {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateSession={(s) => { console.log('Emitting update-session (brainstorm)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReady={handleToggleReady} />}
-                {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (grouping)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReaction={handleToggleReaction} onRegenerate={handleRegenerateGroups} isRegenerating={isRegenerating} />}
-                {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateSession={(s) => { console.log('Emitting update-session (voting)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onUpdateUser={setCurrentUser} onToggleReaction={handleToggleReaction} />}
-                {session.phase === RetroPhase.DISCUSSION && <DiscussionBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateSession={(s) => { console.log('Emitting update-session (discussion)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReaction={handleToggleReaction} />}
+                {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={userWithVotes!} participants={participants} onToggleReady={handleToggleReady} />}
+                {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} currentUser={userWithVotes!} onToggleReaction={handleToggleReaction} onRegenerate={handleRegenerateGroups} isRegenerating={isRegenerating} />}
+                {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateUser={setCurrentUser} onToggleReaction={handleToggleReaction} />}
+                {session.phase === RetroPhase.DISCUSSION && <DiscussionBoard session={session} currentUser={userWithVotes!} participants={participants} onToggleReaction={handleToggleReaction} />}
             </main>
         </div>
     );

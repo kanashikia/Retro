@@ -3,6 +3,11 @@ import { describe, it, expect, vi } from 'vitest';
 import BrainstormBoard from './BrainstormBoard';
 import { ColumnType, RetroPhase } from '../types';
 
+const emitMock = vi.fn();
+vi.mock('../services/socket', () => ({
+    socket: { emit: (...args: any[]) => emitMock(...args) }
+}));
+
 describe('BrainstormBoard', () => {
     const mockSession = {
         id: 'session-1',
@@ -31,7 +36,6 @@ describe('BrainstormBoard', () => {
                 session={mockSession as any}
                 currentUser={currentUser as any}
                 participants={participants as any}
-                onUpdateSession={vi.fn()}
                 onToggleReady={vi.fn()}
             />
         );
@@ -47,7 +51,6 @@ describe('BrainstormBoard', () => {
                 session={mockSession as any}
                 currentUser={adminUser as any}
                 participants={participants as any}
-                onUpdateSession={vi.fn()}
                 onToggleReady={vi.fn()}
             />
         );
@@ -58,19 +61,18 @@ describe('BrainstormBoard', () => {
 
     it('allows admin to start timer', () => {
         const adminUser = { id: 'admin1', name: 'Admin', isAdmin: true };
-        const onUpdateSession = vi.fn();
+        emitMock.mockClear();
         render(
             <BrainstormBoard
                 session={mockSession as any}
                 currentUser={adminUser as any}
                 participants={participants as any}
-                onUpdateSession={onUpdateSession}
                 onToggleReady={vi.fn()}
             />
         );
 
         fireEvent.click(screen.getByText('Start Timer'));
-        expect(onUpdateSession).toHaveBeenCalled();
+        expect(emitMock).toHaveBeenCalledWith('brainstorm:start-timer', { sessionId: 'session-1' });
     });
 
     it('allows participant to toggle ready status', () => {
@@ -81,7 +83,6 @@ describe('BrainstormBoard', () => {
                 session={mockSession as any}
                 currentUser={currentUser as any}
                 participants={participants as any}
-                onUpdateSession={vi.fn()}
                 onToggleReady={onToggleReady}
             />
         );

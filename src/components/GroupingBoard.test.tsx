@@ -66,7 +66,7 @@ describe('GroupingBoard', () => {
       <GroupingBoard
         session={baseSession as any}
         currentUser={{ id: 'admin-1', name: 'Admin', isAdmin: true, votesRemaining: 0 } as any}
-        onUpdateSession={vi.fn()}
+
         onToggleReaction={vi.fn()}
       />
     );
@@ -80,7 +80,7 @@ describe('GroupingBoard', () => {
       <GroupingBoard
         session={baseSession as any}
         currentUser={{ id: 'admin-1', name: 'Admin', isAdmin: true, votesRemaining: 0 } as any}
-        onUpdateSession={vi.fn()}
+
         onToggleReaction={vi.fn()}
       />
     );
@@ -95,7 +95,7 @@ describe('GroupingBoard', () => {
           tickets: [{ ...baseSession.tickets[0], themeId: 'theme-2' }]
         } as any}
         currentUser={{ id: 'admin-1', name: 'Admin', isAdmin: true, votesRemaining: 0 } as any}
-        onUpdateSession={vi.fn()}
+
         onToggleReaction={vi.fn()}
       />
     );
@@ -110,7 +110,7 @@ describe('GroupingBoard', () => {
       <GroupingBoard
         session={baseSession as any}
         currentUser={{ id: 'admin-1', name: 'Admin', isAdmin: true, votesRemaining: 0 } as any}
-        onUpdateSession={vi.fn()}
+
         onToggleReaction={vi.fn()}
       />
     );
