@@ -199,6 +199,28 @@ const emitSessionUpdateForRoom = (sessionId, sessionData, status) => {
     }
 };
 
+const sanitizeIceBreakerState = (raw) => {
+    if (raw === undefined || raw === null) return raw;
+    if (typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+
+    const questions = Array.isArray(raw.questions)
+        ? raw.questions.slice(0, 100).map(q => {
+            if (!q || typeof q !== 'object') return null;
+            const participantId = String(q.participantId ?? '').slice(0, 64);
+            const participantName = String(q.participantName ?? '').slice(0, 64);
+            const question = String(q.question ?? '').slice(0, 500);
+            if (!participantId || !question) return null;
+            return { participantId, participantName, question };
+        }).filter(Boolean)
+        : [];
+
+    const currentIndex = Number.isInteger(raw.currentIndex) && raw.currentIndex >= 0
+        ? Math.min(raw.currentIndex, Math.max(0, questions.length - 1))
+        : 0;
+
+    return { questions, currentIndex };
+};
+
 const buildSessionDataWithMetadata = (session, sessionData) => ({
     ...sessionData,
     createdAt: session?.createdAt?.toISOString?.() || sessionData?.createdAt
@@ -522,6 +544,8 @@ io.on('connection', (socket) => {
             if (!isAdmin) {
                 updatedData.iceBreakerState = existingData?.iceBreakerState;
                 updatedData.hasIceBreaker = existingData?.hasIceBreaker;
+            } else {
+                updatedData.iceBreakerState = sanitizeIceBreakerState(updatedData.iceBreakerState);
             }
 
             await Session.upsert({
