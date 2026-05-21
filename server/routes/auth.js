@@ -4,7 +4,6 @@ import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
 import * as dotenv from 'dotenv';
 import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
 import { sendEmail } from '../services/emailService.js';
 
 // Simple in-memory rate limiter for auth routes
