@@ -1,12 +1,14 @@
 import React, { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate, Link } from 'react-router-dom';
-import { LayoutDashboard, Plus, History, LogOut, CheckCircle2 } from 'lucide-react';
+import { LayoutDashboard, Plus, History, LogOut, CheckCircle2, Snowflake, X } from 'lucide-react';
 
 const Home: React.FC = () => {
     const navigate = useNavigate();
     const [admin, setAdmin] = useState<any>(null);
     const [history, setHistory] = useState<any[]>([]);
+    const [showCreateModal, setShowCreateModal] = useState(false);
+    const [withIceBreaker, setWithIceBreaker] = useState(false);
 
     useEffect(() => {
         const storedAdmin = localStorage.getItem('retro_admin');
@@ -72,9 +74,10 @@ const Home: React.FC = () => {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ sessionId: newId }),
+                body: JSON.stringify({ sessionId: newId, hasIceBreaker: withIceBreaker }),
             });
             if (response.ok) {
+                setShowCreateModal(false);
                 navigate(`/retro/${newId}`);
             } else {
                 const contentType = response.headers.get("content-type");
@@ -129,7 +132,7 @@ const Home: React.FC = () => {
                 <div className="grid md:grid-cols-2 gap-8">
                     {/* Create Session Card */}
                     <button
-                        onClick={handleCreateSession}
+                        onClick={() => { setWithIceBreaker(false); setShowCreateModal(true); }}
                         className="group relative bg-primary p-8 rounded-[32px] overflow-hidden transition-all hover:shadow-2xl hover:shadow-primary/30 active:scale-[0.98] text-left shrink-0"
                     >
                         <div className="absolute top-[-10%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
@@ -208,6 +211,51 @@ const Home: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* Create Session Modal */}
+                {showCreateModal && (
+                    <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+                        <div className="bg-surface border border-border rounded-[32px] shadow-2xl w-full max-w-md p-8 space-y-6">
+                            <div className="flex items-center justify-between">
+                                <h2 className="text-2xl font-bold text-text">Create New Session</h2>
+                                <button onClick={() => setShowCreateModal(false)} className="p-2 text-text-muted hover:text-text rounded-xl hover:bg-secondary transition-colors">
+                                    <X className="w-5 h-5" />
+                                </button>
+                            </div>
+
+                            <button
+                                onClick={() => setWithIceBreaker(v => !v)}
+                                className={`w-full flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-all ${
+                                    withIceBreaker ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
+                                }`}
+                            >
+                                <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${withIceBreaker ? 'bg-primary text-white' : 'bg-secondary text-text-muted'}`}>
+                                    <Snowflake className="w-5 h-5" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <div className="flex items-center justify-between gap-2">
+                                        <p className="font-bold text-text">Ice Breaker</p>
+                                        <div className={`w-10 h-6 rounded-full transition-colors relative shrink-0 ${withIceBreaker ? 'bg-primary' : 'bg-border'}`}>
+                                            <div className={`absolute top-1 w-4 h-4 rounded-full bg-white shadow transition-all ${withIceBreaker ? 'left-5' : 'left-1'}`} />
+                                        </div>
+                                    </div>
+                                    <p className="text-sm text-text-muted mt-1 leading-relaxed">
+                                        Start with a fun round where each person answers a random question before the retro.
+                                    </p>
+                                </div>
+                            </button>
+
+                            <div className="flex gap-3">
+                                <button onClick={() => setShowCreateModal(false)} className="flex-1 py-3.5 rounded-2xl border border-border text-text-muted font-bold hover:bg-secondary transition-colors">
+                                    Cancel
+                                </button>
+                                <button onClick={handleCreateSession} className="flex-1 py-3.5 rounded-2xl bg-primary text-white font-bold hover:bg-primary-hover transition-colors shadow-lg shadow-primary/20">
+                                    Create Session
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Tip Section */}
                 <div className="bg-primary/5 p-6 rounded-[24px] border border-primary/10 flex items-start gap-4">

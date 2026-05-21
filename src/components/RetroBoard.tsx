@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useParams, useNavigate } from 'react-router-dom';
-import { RetroPhase, ColumnType, User, SessionState, ThemeGroup } from '../types';
+import { RetroPhase, User, SessionState, ThemeGroup } from '../types';
 import { groupTicketsWithAI } from '../services/geminiService';
 import { useTheme } from '../context/ThemeContext';
 import { io } from 'socket.io-client';
@@ -17,6 +17,7 @@ import BrainstormBoard from './BrainstormBoard';
 import GroupingBoard from './GroupingBoard';
 import VotingBoard from './VotingBoard';
 import DiscussionBoard from './DiscussionBoard';
+import IceBreakerBoard from './IceBreakerBoard';
 
 const USER_KEY = 'retro_user_v1';
 const ADMIN_KEY = 'retro_admin';
@@ -31,6 +32,7 @@ const RetroBoard: React.FC = () => {
     const [isJoining, setIsJoining] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
     const [isRegenerating, setIsRegenerating] = useState(false);
+    const [isGeneratingIceBreaker, setIsGeneratingIceBreaker] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const handleRegenerateGroups = async () => {
@@ -219,6 +221,23 @@ const RetroBoard: React.FC = () => {
         }
     };
 
+    const handleGenerateIceBreaker = () => {
+        if (!session || !isAdmin || isGeneratingIceBreaker) return;
+        setIsGeneratingIceBreaker(true);
+        setError(null);
+        socket.emit('generate-ice-breaker', { sessionId: session.id }, (response: any) => {
+            setIsGeneratingIceBreaker(false);
+            if (response?.error) setError(response.error);
+        });
+    };
+
+    const handleIceBreakerNext = () => {
+        if (!session || !isAdmin) return;
+        socket.emit('advance-ice-breaker', { sessionId: session.id }, (response: any) => {
+            if (response?.error) setError(response.error);
+        });
+    };
+
     const handleNextPhase = async () => {
         if (!session || !isAdmin) return;
         setError(null);
@@ -227,7 +246,9 @@ const RetroBoard: React.FC = () => {
 
         let updatedSession: SessionState | null = null;
 
-        if (session.phase === RetroPhase.BRAINSTORM) {
+        if (session.phase === RetroPhase.ICE_BREAKER) {
+            updatedSession = { ...session, phase: RetroPhase.BRAINSTORM };
+        } else if (session.phase === RetroPhase.BRAINSTORM) {
             if (session.tickets.length === 0) return setError("Add some cards before grouping!");
             setIsLoading(true);
             try {
@@ -346,8 +367,9 @@ const RetroBoard: React.FC = () => {
                 }}
                 onUpdateSession={(updates) => socket.emit('update-session', { sessionData: { ...session, ...updates } })}
             />
-            <PhaseStepper currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />
+            <PhaseStepper session={session} currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />
             <main className="flex-1 p-6 lg:p-10 mt-8 overflow-auto">
+                {session.phase === RetroPhase.ICE_BREAKER && <IceBreakerBoard session={session} currentUser={userWithVotes!} participants={participants} isAdmin={!!isAdmin} isGenerating={isGeneratingIceBreaker} onGenerate={handleGenerateIceBreaker} onNext={handleIceBreakerNext} onStartRetro={handleNextPhase} />}
                 {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateSession={(s) => { console.log('Emitting update-session (brainstorm)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReady={handleToggleReady} />}
                 {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} currentUser={userWithVotes!} onUpdateSession={(s) => { console.log('Emitting update-session (grouping)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onToggleReaction={handleToggleReaction} onRegenerate={handleRegenerateGroups} isRegenerating={isRegenerating} />}
                 {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateSession={(s) => { console.log('Emitting update-session (voting)'); setSession(s); socket.emit('update-session', { sessionData: s }); }} onUpdateUser={setCurrentUser} onToggleReaction={handleToggleReaction} />}

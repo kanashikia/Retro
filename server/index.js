@@ -157,6 +157,18 @@ const socketToUser = new Map();
 // Local tracking for efficient filtered broadcasting
 const sessionToSockets = new Map();
 
+// Per-session cooldown for expensive AI operations: `${op}:${sessionId}` -> lastCalledAt ms
+const aiOpLastCall = new Map();
+const AI_COOLDOWN_MS = 30_000;
+const checkAiCooldown = (op, sessionId) => {
+    const key = `${op}:${sessionId}`;
+    const last = aiOpLastCall.get(key) ?? 0;
+    const remaining = AI_COOLDOWN_MS - (Date.now() - last);
+    if (remaining > 0) return Math.ceil(remaining / 1000);
+    aiOpLastCall.set(key, Date.now());
+    return 0;
+};
+
 // Redis-backed participant state (Global across all instances)
 const getParticipants = async (sessionId) => {
     try {
@@ -197,6 +209,28 @@ const emitSessionUpdateForRoom = (sessionId, sessionData, status) => {
         if (!data) continue;
         io.to(socketId).emit('session-updated', buildVisibleSessionForUser(sessionData, data.user, status));
     }
+};
+
+const sanitizeIceBreakerState = (raw) => {
+    if (raw === undefined || raw === null) return raw;
+    if (typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+
+    const questions = Array.isArray(raw.questions)
+        ? raw.questions.slice(0, 100).map(q => {
+            if (!q || typeof q !== 'object') return null;
+            const participantId = String(q.participantId ?? '').slice(0, 64);
+            const participantName = String(q.participantName ?? '').slice(0, 64);
+            const question = String(q.question ?? '').slice(0, 500);
+            if (!participantId || !question) return null;
+            return { participantId, participantName, question };
+        }).filter(Boolean)
+        : [];
+
+    const currentIndex = Number.isInteger(raw.currentIndex) && raw.currentIndex >= 0
+        ? Math.min(raw.currentIndex, Math.max(0, questions.length - 1))
+        : 0;
+
+    return { questions, currentIndex };
 };
 
 const buildSessionDataWithMetadata = (session, sessionData) => ({
@@ -519,6 +553,13 @@ io.on('connection', (socket) => {
                 updatedData.themes = existingData?.themes || [];
             }
 
+            if (!isAdmin) {
+                updatedData.iceBreakerState = existingData?.iceBreakerState;
+                updatedData.hasIceBreaker = existingData?.hasIceBreaker;
+            } else {
+                updatedData.iceBreakerState = sanitizeIceBreakerState(updatedData.iceBreakerState);
+            }
+
             await Session.upsert({
                 sessionId: sessionId,
                 adminId: session.adminId,
@@ -583,6 +624,9 @@ io.on('connection', (socket) => {
                 error: 'AI grouping unavailable: set a valid GEMINI_API_KEY in server environment (not a placeholder).'
             });
         }
+
+        const cooldown = checkAiCooldown('group', sessionId);
+        if (cooldown > 0) return callback({ error: `Please wait ${cooldown}s before regenerating groups.` });
 
         try {
             const session = await Session.findOne({ where: { sessionId } });
@@ -779,6 +823,142 @@ ${JSON.stringify(promptItems)}
                 });
             }
             callback({ error: 'AI Error: ' + message });
+        }
+    });
+
+    socket.on('advance-ice-breaker', async ({ sessionId: rawSessionId }, callback) => {
+        const actor = socketToUser.get(socket.id)?.user;
+        if (!rawSessionId || !actor?.id) return typeof callback === 'function' && callback({ error: 'Missing data' });
+        const sessionId = rawSessionId.trim();
+
+        try {
+            const session = await Session.findOne({ where: { sessionId } });
+            if (!session) return typeof callback === 'function' && callback({ error: 'Session not found' });
+            if (!actor.isAdmin || String(session.adminId) !== String(actor.id)) {
+                return typeof callback === 'function' && callback({ error: 'Unauthorized' });
+            }
+
+            const existingData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
+            const questions = existingData?.iceBreakerState?.questions ?? [];
+            const currentIndex = existingData?.iceBreakerState?.currentIndex ?? 0;
+
+            if (currentIndex >= questions.length - 1) {
+                return typeof callback === 'function' && callback({ error: 'Already at last participant' });
+            }
+
+            const updatedData = {
+                ...existingData,
+                iceBreakerState: { ...existingData.iceBreakerState, currentIndex: currentIndex + 1 }
+            };
+            await Session.update({ data: updatedData }, { where: { sessionId } });
+            emitSessionUpdateForRoom(sessionId, updatedData, session.status);
+            if (typeof callback === 'function') callback({ success: true });
+        } catch (error) {
+            console.error('[IceBreaker] advance error:', error);
+            if (typeof callback === 'function') callback({ error: error.message });
+        }
+    });
+
+    socket.on('generate-ice-breaker', async ({ sessionId: rawSessionId }, callback) => {
+        const actor = socketToUser.get(socket.id)?.user;
+        if (!rawSessionId || !actor?.id) return typeof callback === 'function' && callback({ error: 'Missing data' });
+        const sessionId = rawSessionId.trim();
+
+        if (!ai) {
+            return typeof callback === 'function' && callback({ error: 'AI unavailable: set a valid GEMINI_API_KEY.' });
+        }
+
+        const cooldown = checkAiCooldown('icebreaker', sessionId);
+        if (cooldown > 0) return typeof callback === 'function' && callback({ error: `Please wait ${cooldown}s before regenerating questions.` });
+
+        try {
+            const session = await Session.findOne({ where: { sessionId } });
+            if (!session) return typeof callback === 'function' && callback({ error: 'Session not found' });
+            if (!actor.isAdmin || String(session.adminId) !== String(actor.id)) {
+                return typeof callback === 'function' && callback({ error: 'Unauthorized' });
+            }
+
+            const participants = await getParticipants(sessionId);
+            if (participants.length === 0) {
+                return typeof callback === 'function' && callback({ error: 'No participants in session yet.' });
+            }
+
+            const names = participants.map(p =>
+                p.name.replace(/[\r\n\t]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 64)
+            );
+            const n = names.length;
+
+            const questionCategories = [
+                'favorite things', 'hypothetical scenarios', 'would-you-rather',
+                'travel & culture', 'childhood memories', 'superpowers', 'food',
+                'unpopular opinions', 'hidden talents', 'bucket list', 'time travel',
+                'desert island', 'dream job', 'fictional worlds'
+            ];
+            const shuffledCategories = questionCategories
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 5)
+                .join(', ');
+
+            const prompt = `Generate ${n} fun and diverse icebreaker questions for a team meeting. One unique question per person.
+Make them light-hearted, inclusive, and suitable for a professional setting.
+Mix question types this time: ${shuffledCategories}.
+Avoid common or overused questions. Be creative and surprising.
+Team members: ${names.map(name => `"${name.replace(/"/g, '')}"`).join(', ')}
+Return a JSON object with a "questions" array of exactly ${n} strings (one per team member, in the same order).`;
+
+            let questions = null;
+            for (const model of aiGroupingModels) {
+                try {
+                    const result = await ai.models.generateContent({
+                        model,
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            temperature: 1.5,
+                            responseMimeType: 'application/json',
+                            responseSchema: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    questions: { type: Type.ARRAY, items: { type: Type.STRING } }
+                                },
+                                required: ['questions']
+                            }
+                        }
+                    });
+                    const rawText = result?.text ?? result?.response?.text?.();
+                    const cleanText = String(rawText ?? '').trim()
+                        .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+                    const parsed = JSON.parse(cleanText);
+                    questions = Array.isArray(parsed?.questions) ? parsed.questions : null;
+                    if (questions) break;
+                } catch (err) {
+                    const msg = String(err?.message || '');
+                    if (isRetryableAiModelError(msg) && model !== aiGroupingModels[aiGroupingModels.length - 1]) continue;
+                    throw err;
+                }
+            }
+
+            if (!questions || questions.length === 0) {
+                return typeof callback === 'function' && callback({ error: 'AI returned no questions.' });
+            }
+
+            const iceBreakerState = {
+                questions: participants.map((p, i) => ({
+                    participantId: p.id,
+                    participantName: p.name,
+                    question: questions[i] || 'What is something your teammates might not know about you?'
+                })),
+                currentIndex: 0
+            };
+
+            const existingData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
+            const updatedData = { ...existingData, iceBreakerState };
+            await Session.update({ data: updatedData }, { where: { sessionId } });
+            emitSessionUpdateForRoom(sessionId, updatedData, session.status);
+            console.log(`[IceBreaker] Generated ${iceBreakerState.questions.length} questions for session ${sessionId}`);
+            if (typeof callback === 'function') callback({ success: true });
+        } catch (error) {
+            console.error('[IceBreaker] Error:', error);
+            if (typeof callback === 'function') callback({ error: 'Failed to generate questions: ' + error.message });
         }
     });
 

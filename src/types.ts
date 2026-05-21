@@ -1,9 +1,21 @@
 
 export enum RetroPhase {
+  ICE_BREAKER = 'ICE_BREAKER',
   BRAINSTORM = 'BRAINSTORM',
   GROUPING = 'GROUPING',
   VOTING = 'VOTING',
   DISCUSSION = 'DISCUSSION'
+}
+
+export interface IceBreakerQuestion {
+  participantId: string;
+  participantName: string;
+  question: string;
+}
+
+export interface IceBreakerState {
+  questions: IceBreakerQuestion[];
+  currentIndex: number;
 }
 
 export enum ColumnType {
@@ -61,4 +73,6 @@ export interface SessionState {
   brainstormTimerEndsAt?: number | null;
   brainstormTimerDuration?: number;
   defaultThemeId?: string;
+  hasIceBreaker?: boolean;
+  iceBreakerState?: IceBreakerState;
 }
