@@ -6,18 +6,19 @@ const router = express.Router();
 
 // Create a new session with pre-assigned admin
 router.post('/create', protect, async (req, res) => {
-    const { sessionId } = req.body;
+    const { sessionId, hasIceBreaker } = req.body;
     if (!sessionId) return res.status(400).json({ message: 'Missing sessionId' });
     const adminId = req.user.id;
 
     try {
         const defaultData = {
             id: sessionId,
-            phase: 'BRAINSTORM',
+            phase: hasIceBreaker ? 'ICE_BREAKER' : 'BRAINSTORM',
             tickets: [],
             themes: [],
             currentThemeIndex: 0,
-            adminId: adminId
+            adminId: adminId,
+            hasIceBreaker: !!hasIceBreaker
         };
         const session = await Session.create({
             sessionId,

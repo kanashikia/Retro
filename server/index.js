@@ -519,6 +519,11 @@ io.on('connection', (socket) => {
                 updatedData.themes = existingData?.themes || [];
             }
 
+            if (!isAdmin) {
+                updatedData.iceBreakerState = existingData?.iceBreakerState;
+                updatedData.hasIceBreaker = existingData?.hasIceBreaker;
+            }
+
             await Session.upsert({
                 sessionId: sessionId,
                 adminId: session.adminId,
@@ -779,6 +784,91 @@ ${JSON.stringify(promptItems)}
                 });
             }
             callback({ error: 'AI Error: ' + message });
+        }
+    });
+
+    socket.on('generate-ice-breaker', async ({ sessionId: rawSessionId }, callback) => {
+        const actor = socketToUser.get(socket.id)?.user;
+        if (!rawSessionId || !actor?.id) return typeof callback === 'function' && callback({ error: 'Missing data' });
+        const sessionId = rawSessionId.trim();
+
+        if (!ai) {
+            return typeof callback === 'function' && callback({ error: 'AI unavailable: set a valid GEMINI_API_KEY.' });
+        }
+
+        try {
+            const session = await Session.findOne({ where: { sessionId } });
+            if (!session) return typeof callback === 'function' && callback({ error: 'Session not found' });
+            if (!actor.isAdmin || String(session.adminId) !== String(actor.id)) {
+                return typeof callback === 'function' && callback({ error: 'Unauthorized' });
+            }
+
+            const participants = await getParticipants(sessionId);
+            if (participants.length === 0) {
+                return typeof callback === 'function' && callback({ error: 'No participants in session yet.' });
+            }
+
+            const names = participants.map(p => p.name);
+            const n = names.length;
+
+            const prompt = `Generate ${n} fun and diverse icebreaker questions for a team meeting. One unique question per person.
+Make them light-hearted, inclusive, and suitable for a professional setting.
+Mix question types: favorite things, hypothetical scenarios, would-you-rather, travel & culture, childhood memories, superpowers, food.
+Team members: ${names.join(', ')}
+Return a JSON object with a "questions" array of exactly ${n} strings (one per team member, in the same order).`;
+
+            let questions = null;
+            for (const model of aiGroupingModels) {
+                try {
+                    const result = await ai.models.generateContent({
+                        model,
+                        contents: [{ parts: [{ text: prompt }] }],
+                        generationConfig: {
+                            responseMimeType: 'application/json',
+                            responseSchema: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    questions: { type: Type.ARRAY, items: { type: Type.STRING } }
+                                },
+                                required: ['questions']
+                            }
+                        }
+                    });
+                    const rawText = result?.text ?? result?.response?.text?.();
+                    const cleanText = String(rawText ?? '').trim()
+                        .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+                    const parsed = JSON.parse(cleanText);
+                    questions = Array.isArray(parsed?.questions) ? parsed.questions : null;
+                    if (questions) break;
+                } catch (err) {
+                    const msg = String(err?.message || '');
+                    if (isRetryableAiModelError(msg) && model !== aiGroupingModels[aiGroupingModels.length - 1]) continue;
+                    throw err;
+                }
+            }
+
+            if (!questions || questions.length === 0) {
+                return typeof callback === 'function' && callback({ error: 'AI returned no questions.' });
+            }
+
+            const iceBreakerState = {
+                questions: participants.map((p, i) => ({
+                    participantId: p.id,
+                    participantName: p.name,
+                    question: questions[i] || 'What is something your teammates might not know about you?'
+                })),
+                currentIndex: 0
+            };
+
+            const existingData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
+            const updatedData = { ...existingData, iceBreakerState };
+            await Session.update({ data: updatedData }, { where: { sessionId } });
+            emitSessionUpdateForRoom(sessionId, updatedData, session.status);
+            console.log(`[IceBreaker] Generated ${iceBreakerState.questions.length} questions for session ${sessionId}`);
+            if (typeof callback === 'function') callback({ success: true });
+        } catch (error) {
+            console.error('[IceBreaker] Error:', error);
+            if (typeof callback === 'function') callback({ error: 'Failed to generate questions: ' + error.message });
         }
     });
 
