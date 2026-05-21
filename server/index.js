@@ -9,7 +9,7 @@ import cors from 'cors';
 import { GoogleGenAI, Type } from "@google/genai";
 import { randomUUID } from 'crypto';
 import * as dotenv from 'dotenv';
-import { connectDB } from './db.js';
+import { connectDB, sequelize } from './db.js';
 import Session from './models/Session.js';
 import {
     buildVisibleSessionForUser,
@@ -137,9 +137,18 @@ const subClient = pubClient.duplicate();
 pubClient.on('error', (err) => console.error('Redis Pub Client Error', err));
 subClient.on('error', (err) => console.error('Redis Sub Client Error', err));
 
+// Dedicated pub/sub channel for cross-node session broadcasts.
+// The socket.io Redis adapter handles plain io.to(room).emit() across nodes,
+// but emitSessionUpdateForRoom needs per-user filtering and iterates LOCAL
+// sockets only. We publish updates here so every node runs its local emit.
+const SESSION_UPDATE_CHANNEL = 'retro:session-update';
+const sessionUpdateSub = pubClient.duplicate();
+sessionUpdateSub.on('error', (err) => console.error('Session Update Sub Error', err));
+
 try {
     await pubClient.connect();
     await subClient.connect();
+    await sessionUpdateSub.connect();
     console.log('Connected to Redis');
 } catch (err) {
     console.error('Failed to connect to Redis:', err.message);
@@ -202,19 +211,44 @@ const getParticipants = async (sessionId) => {
 
 // Helper functions moved to server/utils/sessionHelper.js
 
-const emitSessionUpdateForRoom = (sessionId, sessionData, status) => {
-    // We iterate through LOCAL sockets in this session to send filtered views.
-    // The Redis adapter handles the cross-node part if we were doing a plain broadcast,
-    // but since we need per-user filtering, each node handles its own local clients.
+// Local emit: iterate THIS node's sockets in the session and push a filtered view.
+// Optionally resets isReady for everyone in the session on this node.
+const localEmitSessionUpdate = ({ sessionId, sessionData, status, resetReady }) => {
+    if (resetReady) {
+        for (const [sid, data] of socketToUser.entries()) {
+            if (data.sessionId === sessionId) {
+                data.user.isReady = false;
+                socketToUser.set(sid, data);
+            }
+        }
+    }
     const socketIds = sessionToSockets.get(sessionId);
     if (!socketIds) return;
-
     for (const socketId of socketIds) {
         const data = socketToUser.get(socketId);
         if (!data) continue;
         io.to(socketId).emit('session-updated', buildVisibleSessionForUser(sessionData, data.user, status));
     }
 };
+
+// Publish to all nodes (including self — Redis pub/sub delivers to publishing
+// subscriber too via the separate sub connection).
+const emitSessionUpdateForRoom = (sessionId, sessionData, status, resetReady = false) => {
+    const payload = JSON.stringify({ sessionId, sessionData, status, resetReady });
+    pubClient.publish(SESSION_UPDATE_CHANNEL, payload).catch((err) => {
+        console.error('Session update publish failed:', err);
+        // Fallback: still emit locally so this node's clients aren't starved.
+        localEmitSessionUpdate({ sessionId, sessionData, status, resetReady });
+    });
+};
+
+await sessionUpdateSub.subscribe(SESSION_UPDATE_CHANNEL, (message) => {
+    try {
+        localEmitSessionUpdate(JSON.parse(message));
+    } catch (err) {
+        console.error('Session update sub handler failed:', err);
+    }
+});
 
 async function authorizeActor(socketId, rawSessionId, { requireAdmin = false } = {}) {
     const actor = socketToUser.get(socketId)?.user;
@@ -237,14 +271,61 @@ async function authorizeActor(socketId, rawSessionId, { requireAdmin = false } =
     return { actor, session, sessionId, isAdmin };
 }
 
-async function mutateSession(sessionId, session, mutator) {
-    const existingData = typeof session.data === 'string' ? JSON.parse(session.data) : (session.data || {});
-    const updatedData = mutator(existingData);
-    if (!updatedData) return { error: 'No change' };
-    const finalData = buildSessionDataWithMetadata(session, { ...updatedData, id: sessionId });
-    await Session.upsert({ sessionId, adminId: session.adminId, data: finalData });
-    emitSessionUpdateForRoom(sessionId, finalData, session.status);
-    return { success: true, data: finalData };
+// Marker key on the mutator return: tells mutateSession to reset isReady
+// cluster-wide after commit. Stripped before persisting.
+const RESET_READY = '__resetReady';
+
+async function mutateSession(sessionId, _ignoredStaleSession, mutator) {
+    const MAX_RETRIES = 3;
+    let lastError;
+
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        const tx = await sequelize.transaction();
+        try {
+            // Row lock prevents concurrent mutators from racing on the same session.
+            const session = await Session.findOne({
+                where: { sessionId },
+                lock: tx.LOCK.UPDATE,
+                transaction: tx
+            });
+            if (!session) {
+                await tx.rollback();
+                return { error: 'Session not found' };
+            }
+
+            const existingData = typeof session.data === 'string'
+                ? JSON.parse(session.data)
+                : (session.data || {});
+            const updatedData = mutator(existingData);
+            if (!updatedData) {
+                await tx.rollback();
+                return { error: 'No change' };
+            }
+
+            const resetReady = updatedData[RESET_READY] === true;
+            if (resetReady) delete updatedData[RESET_READY];
+
+            const finalData = buildSessionDataWithMetadata(session, { ...updatedData, id: sessionId });
+            await Session.upsert(
+                { sessionId, adminId: session.adminId, data: finalData },
+                { transaction: tx }
+            );
+            await tx.commit();
+
+            emitSessionUpdateForRoom(sessionId, finalData, session.status, resetReady);
+            return { success: true, data: finalData };
+        } catch (err) {
+            await tx.rollback().catch(() => {});
+            lastError = err;
+            const msg = err?.parent?.message || err?.original?.message || err?.message || '';
+            const isTransient = /deadlock|lock wait timeout|ER_LOCK_DEADLOCK|ER_LOCK_WAIT_TIMEOUT/i.test(msg);
+            if (!isTransient || attempt === MAX_RETRIES - 1) break;
+            await new Promise((r) => setTimeout(r, 30 * (attempt + 1) + Math.floor(Math.random() * 30)));
+        }
+    }
+
+    console.error('[mutateSession] failed after retries:', lastError);
+    return { error: lastError?.message || 'Mutation failed' };
 }
 
 const cap = (val, max) => String(val ?? '').slice(0, max);
@@ -516,101 +597,14 @@ io.on('connection', (socket) => {
         }
     });
 
-    socket.on('update-session', async ({ sessionData }) => {
-        const actor = socketToUser.get(socket.id)?.user;
-        if (!sessionData || !sessionData.id || !actor?.id) {
-            console.error('Update-session rejected: Missing data', { sessionDataId: sessionData?.id, actorId: actor?.id });
-            return;
-        }
-
-        const sessionId = sessionData.id.trim();
-        console.warn(`[Deprecated] update-session called by ${actor.id} on ${sessionId}. Migrate to atomic events.`);
-
-        try {
-            console.log(`Processing update-session for ${sessionId} from user ${actor.id}`);
-            const session = await Session.findOne({ where: { sessionId: sessionId } });
-            if (!session) {
-                console.warn(`Update-session rejected: session ${sessionId} not found`);
-                return;
-            }
-
-            // Allow updates from participants if they are in the session
-            const participants = await getParticipants(sessionId);
-            const isParticipant = participants.some(p => String(p.id) === String(actor.id));
-            const isAdmin = !!(session && actor.isAdmin && String(session.adminId) === String(actor.id));
-
-            if (session && !isAdmin && !isParticipant) {
-                console.warn(`Unauthorized update attempt by ${actor.id} for session ${sessionId}. Participants:`, participants.map(p => p.id));
-                return;
-            }
-
-            // Ensure we are merging properly
-            const existingData = session ? (typeof session.data === 'string' ? JSON.parse(session.data) : session.data) : {};
-            const updatedData = buildSessionDataWithMetadata(session, { ...existingData, ...sessionData, id: sessionId });
-
-            if (!isAdmin) {
-                updatedData.adminId = existingData?.adminId;
-                updatedData.phase = existingData?.phase;
-                updatedData.currentThemeIndex = existingData?.currentThemeIndex;
-                updatedData.brainstormTimerEndsAt = existingData?.brainstormTimerEndsAt;
-                updatedData.brainstormTimerDuration = existingData?.brainstormTimerDuration;
-                updatedData.defaultThemeId = existingData?.defaultThemeId;
-            } else if (sessionData.phase && sessionData.phase !== existingData?.phase) {
-                // Reset ready status for everyone when admin changes phase
-                for (const [sid, data] of socketToUser.entries()) {
-                    if (data.sessionId === sessionId) {
-                        data.user.isReady = false;
-                        socketToUser.set(sid, data);
-                    }
-                }
-            }
-
-            // In brainstorm, non-admin clients receive a filtered ticket view.
-            // Prevent them from overwriting others' tickets when they submit updates.
-            if (!isAdmin && existingData?.phase === 'BRAINSTORM') {
-                const existingTickets = Array.isArray(existingData?.tickets) ? existingData.tickets : [];
-                const incomingTickets = Array.isArray(sessionData?.tickets) ? sessionData.tickets : [];
-
-                const userOwnedFromIncoming = incomingTickets.filter(
-                    (ticket) => ticket && String(ticket.authorId) === String(actor.id)
-                );
-                const othersFromExisting = existingTickets.filter(
-                    (ticket) => !ticket || String(ticket.authorId) !== String(actor.id)
-                );
-
-                updatedData.tickets = [...othersFromExisting, ...userOwnedFromIncoming];
-                updatedData.themes = existingData?.themes || [];
-            }
-
-            if (!isAdmin && existingData?.phase === 'VOTING') {
-                const votingSafe = applyParticipantVotingUpdate(existingData, sessionData, actor.id);
-                updatedData.themes = votingSafe.themes;
-                updatedData.tickets = existingData?.tickets || [];
-            }
-
-            if (!isAdmin && existingData?.phase === 'DISCUSSION') {
-                updatedData.tickets = existingData?.tickets || [];
-                updatedData.themes = existingData?.themes || [];
-            }
-
-            if (!isAdmin) {
-                updatedData.iceBreakerState = existingData?.iceBreakerState;
-                updatedData.hasIceBreaker = existingData?.hasIceBreaker;
-            } else {
-                updatedData.iceBreakerState = sanitizeIceBreakerState(updatedData.iceBreakerState);
-            }
-
-            await Session.upsert({
-                sessionId: sessionId,
-                adminId: session.adminId,
-                data: updatedData
-            });
-
-            // Broadcast a filtered view to each participant.
-            emitSessionUpdateForRoom(sessionId, updatedData, session.status);
-            console.log(`Session ${sessionId} updated and broadcasted with per-user visibility. New theme count: ${updatedData.themes?.length || 0}`);
-        } catch (error) {
-            console.error('Error in update-session:', error);
+    // Removed: 'update-session' blanket handler. All mutations now go through
+    // the atomic event handlers below, which validate per-field and enforce
+    // server-side authorization. Reject any stale callers loudly.
+    socket.on('update-session', (_payload, callback) => {
+        const actorId = socketToUser.get(socket.id)?.user?.id;
+        console.warn(`[Removed] update-session called by ${actorId ?? 'unknown'} — rejected. Client is out of date.`);
+        if (typeof callback === 'function') {
+            callback({ error: 'update-session is no longer supported. Update the client.' });
         }
     });
 
@@ -1002,15 +996,10 @@ io.on('connection', (socket) => {
                 if (Number.isInteger(currentThemeIndex) && currentThemeIndex >= 0) {
                     next.currentThemeIndex = currentThemeIndex;
                 }
-                // Reset ready status for everyone when phase changes
-                if (data.phase !== p) {
-                    for (const [sid, sdata] of socketToUser.entries()) {
-                        if (sdata.sessionId === auth.sessionId) {
-                            sdata.user.isReady = false;
-                            socketToUser.set(sid, sdata);
-                        }
-                    }
-                }
+                // Reset ready status for everyone when phase changes — flagged
+                // for cross-node propagation; mutateSession strips the marker
+                // before persisting and triggers the reset on every node.
+                if (data.phase !== p) next[RESET_READY] = true;
                 return next;
             });
             cb(callback, res);
@@ -1046,14 +1035,20 @@ io.on('connection', (socket) => {
             const themeIds = new Set(safeThemes.map(t => t.id));
             const fallbackId = safeThemes[0].id;
 
-            const res = await mutateSession(auth.sessionId, auth.session, (data) => ({
-                ...data,
-                themes: safeThemes,
-                tickets: (data.tickets || []).map(t => {
-                    const assigned = cap(assignments[t.id], 64);
-                    return { ...t, themeId: themeIds.has(assigned) ? assigned : fallbackId };
-                })
-            }));
+            // Allowed only while themes are being formed (BRAINSTORM right before
+            // transition to GROUPING, or GROUPING during regenerate). Calling it
+            // in VOTING/DISCUSSION would wipe votes — block at server.
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'BRAINSTORM' && data.phase !== 'GROUPING') return null;
+                return {
+                    ...data,
+                    themes: safeThemes,
+                    tickets: (data.tickets || []).map(t => {
+                        const assigned = cap(assignments[t.id], 64);
+                        return { ...t, themeId: themeIds.has(assigned) ? assigned : fallbackId };
+                    })
+                };
+            });
             cb(callback, res);
         } catch (e) {
             console.error('[session:apply-themes]', e);
