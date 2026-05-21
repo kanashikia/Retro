@@ -233,15 +233,9 @@ const RetroBoard: React.FC = () => {
 
     const handleIceBreakerNext = () => {
         if (!session || !isAdmin) return;
-        const questions = session.iceBreakerState?.questions ?? [];
-        const currentIdx = session.iceBreakerState?.currentIndex ?? 0;
-        if (currentIdx >= questions.length - 1) return;
-        const updatedSession: SessionState = {
-            ...session,
-            iceBreakerState: { ...session.iceBreakerState!, currentIndex: currentIdx + 1 }
-        };
-        setSession(updatedSession);
-        socket.emit('update-session', { sessionData: updatedSession });
+        socket.emit('advance-ice-breaker', { sessionId: session.id }, (response: any) => {
+            if (response?.error) setError(response.error);
+        });
     };
 
     const handleNextPhase = async () => {

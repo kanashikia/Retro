@@ -787,6 +787,39 @@ ${JSON.stringify(promptItems)}
         }
     });
 
+    socket.on('advance-ice-breaker', async ({ sessionId: rawSessionId }, callback) => {
+        const actor = socketToUser.get(socket.id)?.user;
+        if (!rawSessionId || !actor?.id) return typeof callback === 'function' && callback({ error: 'Missing data' });
+        const sessionId = rawSessionId.trim();
+
+        try {
+            const session = await Session.findOne({ where: { sessionId } });
+            if (!session) return typeof callback === 'function' && callback({ error: 'Session not found' });
+            if (!actor.isAdmin || String(session.adminId) !== String(actor.id)) {
+                return typeof callback === 'function' && callback({ error: 'Unauthorized' });
+            }
+
+            const existingData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
+            const questions = existingData?.iceBreakerState?.questions ?? [];
+            const currentIndex = existingData?.iceBreakerState?.currentIndex ?? 0;
+
+            if (currentIndex >= questions.length - 1) {
+                return typeof callback === 'function' && callback({ error: 'Already at last participant' });
+            }
+
+            const updatedData = {
+                ...existingData,
+                iceBreakerState: { ...existingData.iceBreakerState, currentIndex: currentIndex + 1 }
+            };
+            await Session.update({ data: updatedData }, { where: { sessionId } });
+            emitSessionUpdateForRoom(sessionId, updatedData, session.status);
+            if (typeof callback === 'function') callback({ success: true });
+        } catch (error) {
+            console.error('[IceBreaker] advance error:', error);
+            if (typeof callback === 'function') callback({ error: error.message });
+        }
+    });
+
     socket.on('generate-ice-breaker', async ({ sessionId: rawSessionId }, callback) => {
         const actor = socketToUser.get(socket.id)?.user;
         if (!rawSessionId || !actor?.id) return typeof callback === 'function' && callback({ error: 'Missing data' });
