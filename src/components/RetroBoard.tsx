@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useParams, useNavigate } from 'react-router-dom';
-import { RetroPhase, ColumnType, User, SessionState, ThemeGroup } from '../types';
+import { RetroPhase, User, SessionState, ThemeGroup } from '../types';
 import { groupTicketsWithAI } from '../services/geminiService';
 import { useTheme } from '../context/ThemeContext';
 import { io } from 'socket.io-client';

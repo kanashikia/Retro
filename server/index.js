@@ -888,9 +888,21 @@ ${JSON.stringify(promptItems)}
             );
             const n = names.length;
 
+            const questionCategories = [
+                'favorite things', 'hypothetical scenarios', 'would-you-rather',
+                'travel & culture', 'childhood memories', 'superpowers', 'food',
+                'unpopular opinions', 'hidden talents', 'bucket list', 'time travel',
+                'desert island', 'dream job', 'fictional worlds'
+            ];
+            const shuffledCategories = questionCategories
+                .sort(() => Math.random() - 0.5)
+                .slice(0, 5)
+                .join(', ');
+
             const prompt = `Generate ${n} fun and diverse icebreaker questions for a team meeting. One unique question per person.
 Make them light-hearted, inclusive, and suitable for a professional setting.
-Mix question types: favorite things, hypothetical scenarios, would-you-rather, travel & culture, childhood memories, superpowers, food.
+Mix question types this time: ${shuffledCategories}.
+Avoid common or overused questions. Be creative and surprising.
 Team members: ${names.map(name => `"${name.replace(/"/g, '')}"`).join(', ')}
 Return a JSON object with a "questions" array of exactly ${n} strings (one per team member, in the same order).`;
 
@@ -901,6 +913,7 @@ Return a JSON object with a "questions" array of exactly ${n} strings (one per t
                         model,
                         contents: [{ parts: [{ text: prompt }] }],
                         generationConfig: {
+                            temperature: 1.5,
                             responseMimeType: 'application/json',
                             responseSchema: {
                                 type: Type.OBJECT,
