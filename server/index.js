@@ -157,6 +157,18 @@ const socketToUser = new Map();
 // Local tracking for efficient filtered broadcasting
 const sessionToSockets = new Map();
 
+// Per-session cooldown for expensive AI operations: `${op}:${sessionId}` -> lastCalledAt ms
+const aiOpLastCall = new Map();
+const AI_COOLDOWN_MS = 30_000;
+const checkAiCooldown = (op, sessionId) => {
+    const key = `${op}:${sessionId}`;
+    const last = aiOpLastCall.get(key) ?? 0;
+    const remaining = AI_COOLDOWN_MS - (Date.now() - last);
+    if (remaining > 0) return Math.ceil(remaining / 1000);
+    aiOpLastCall.set(key, Date.now());
+    return 0;
+};
+
 // Redis-backed participant state (Global across all instances)
 const getParticipants = async (sessionId) => {
     try {
@@ -613,6 +625,9 @@ io.on('connection', (socket) => {
             });
         }
 
+        const cooldown = checkAiCooldown('group', sessionId);
+        if (cooldown > 0) return callback({ error: `Please wait ${cooldown}s before regenerating groups.` });
+
         try {
             const session = await Session.findOne({ where: { sessionId } });
             if (!session) {
@@ -852,6 +867,9 @@ ${JSON.stringify(promptItems)}
         if (!ai) {
             return typeof callback === 'function' && callback({ error: 'AI unavailable: set a valid GEMINI_API_KEY.' });
         }
+
+        const cooldown = checkAiCooldown('icebreaker', sessionId);
+        if (cooldown > 0) return typeof callback === 'function' && callback({ error: `Please wait ${cooldown}s before regenerating questions.` });
 
         try {
             const session = await Session.findOne({ where: { sessionId } });
