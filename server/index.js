@@ -1415,11 +1415,12 @@ ${JSON.stringify(promptItems)}
                 .join(', ');
 
             const prompt = `Generate ${n} fun and diverse icebreaker questions for a team meeting. One unique question per person.
+Write every question in French (français).
 Make them light-hearted, inclusive, and suitable for a professional setting.
 Mix question types this time: ${shuffledCategories}.
 Avoid common or overused questions. Be creative and surprising.
 Team members: ${names.map(name => `"${name.replace(/"/g, '')}"`).join(', ')}
-Return a JSON object with a "questions" array of exactly ${n} strings (one per team member, in the same order).`;
+Return a JSON object with a "questions" array of exactly ${n} strings in French (one per team member, in the same order).`;
 
             let questions = null;
             for (const model of aiGroupingModels) {
@@ -1460,7 +1461,7 @@ Return a JSON object with a "questions" array of exactly ${n} strings (one per t
                 questions: participants.map((p, i) => ({
                     participantId: p.id,
                     participantName: p.name,
-                    question: questions[i] || 'What is something your teammates might not know about you?'
+                    question: questions[i] || 'Quelle est une chose que tes collègues ne savent probablement pas sur toi ?'
                 })),
                 currentIndex: 0
             };
