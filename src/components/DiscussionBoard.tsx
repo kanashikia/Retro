@@ -29,9 +29,13 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
   const isReadOnly = session.status === 'closed';
   const rootRef = React.useRef<HTMLDivElement>(null);
 
-  // Topic changed: bring the new topic back to the top of the viewport.
+  // Topic changed: send every scrollable ancestor back to the very top — aligning the
+  // board itself would push the header and the phase stepper out of view.
   React.useEffect(() => {
-    rootRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+    for (let el: HTMLElement | null | undefined = rootRef.current?.parentElement; el; el = el.parentElement) {
+      if (el.scrollHeight > el.clientHeight) el.scrollTo?.({ top: 0, behavior: 'smooth' });
+    }
+    window.scrollTo?.({ top: 0, behavior: 'smooth' });
   }, [session.currentThemeIndex]);
 
 
