@@ -70,17 +70,17 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
   };
 
   return (
-    <div className="flex flex-col gap-8 h-full">
+    <div className="flex flex-col gap-5 md:gap-8 h-full">
       <div className="bg-surface p-4 rounded-xl shadow-sm border border-border flex flex-wrap items-center justify-between gap-4">
         {currentUser.isAdmin ? (
-          <div className="flex items-center justify-between w-full">
-            <div className="flex items-center gap-6">
-              <div className="flex items-center gap-4">
+          <div className="flex w-full flex-col items-stretch gap-4 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-6">
+              <div className="flex items-center gap-3 sm:gap-4">
                 <span className="text-sm font-bold text-text">Brainstorm Timer:</span>
                 <select
                   value={session.brainstormTimerDuration || 10}
                   onChange={(e) => socket.emit('brainstorm:set-timer-duration', { sessionId: session.id, duration: Number(e.target.value) })}
-                  className="px-3 py-1.5 bg-background border border-border rounded-lg text-sm font-medium outline-none focus:border-primary text-text"
+                  className="px-3 py-1.5 bg-background border border-border rounded-lg text-base sm:text-sm font-medium outline-none focus:border-primary text-text"
                 >
                   {[1, 2, 5, 10, 15, 20, 30].map(m => (
                     <option key={m} value={m}>{m} minutes</option>
@@ -112,13 +112,13 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
               </div>
             </div>
 
-            <div className="flex items-center gap-6 bg-background px-5 py-3 rounded-2xl border border-border shadow-inner">
-              <div className="flex flex-col border-r border-border pr-6">
+            <div className="flex items-center gap-4 sm:gap-6 bg-background px-4 py-3 sm:px-5 rounded-2xl border border-border shadow-inner">
+              <div className="flex flex-col border-r border-border pr-4 sm:pr-6">
                 <span className="text-[10px] font-black uppercase text-text-muted tracking-widest leading-none mb-1">Status</span>
                 <span className="text-lg font-black text-primary leading-none">{readyCount}<span className="text-border mx-1">/</span><span className="text-text-muted">{totalParticipants}</span></span>
                 <span className="text-[10px] font-bold text-text-muted uppercase tracking-tighter mt-1">Ready</span>
               </div>
-              <div className="flex flex-wrap gap-2 max-w-[300px] lg:max-w-md">
+              <div className="flex flex-wrap gap-2 min-w-0 lg:max-w-md">
                 {participants
                   .filter(p => !p.isAdmin)
                   .sort((a, b) => (a.isReady === b.isReady ? 0 : a.isReady ? 1 : -1))
@@ -143,8 +143,8 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
             </div>
           </div>
         ) : (
-          <div className="w-full flex items-center justify-between py-2">
-            <div className="flex items-center gap-8">
+          <div className="w-full flex flex-col sm:flex-row sm:items-center justify-between gap-4 py-2">
+            <div className="flex items-center gap-4 sm:gap-8">
               {session.brainstormTimerEndsAt ? (
                 <div className="flex items-center gap-4">
                   <span className="text-sm font-bold text-text uppercase tracking-widest">Brainstorming ending in:</span>
@@ -157,7 +157,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
 
             <button
               onClick={() => onToggleReady(!isReady)}
-              className={`flex items-center gap-2 px-6 py-2.5 rounded-xl text-base font-bold transition-all shadow-md active:scale-95
+              className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl text-base font-bold transition-all shadow-md active:scale-95 touch-manipulation
                 ${isReady
                   ? 'bg-emerald-100 text-emerald-700 border-2 border-emerald-500'
                   : 'bg-primary hover:bg-primary-hover text-white'}`}
@@ -175,9 +175,9 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
         )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5 md:gap-8">
         {Object.values(ColumnType).map((col) => (
-          <div key={col} className="flex flex-col gap-6">
+          <div key={col} className="flex flex-col gap-4 md:gap-6">
             <div className={`flex items-center justify-between p-4 rounded-xl border-b-4 bg-surface shadow-sm
             ${col === ColumnType.WELL ? 'border-emerald-500' :
                 col === ColumnType.LESS_WELL ? 'border-rose-500' :
@@ -187,7 +187,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                 <Plus className="w-5 h-5 text-text-muted" />
               </button>
             </div>
-            <div className="flex flex-col gap-4 min-h-[150px]">
+            <div className="flex flex-col gap-4 min-h-[80px] md:min-h-[150px]">
               {activeCol === col && !editingTicketId && (
                 <div className="bg-surface p-5 rounded-2xl border-2 border-primary/50 shadow-xl ring-4 ring-primary/20 animate-in zoom-in-95">
                   <textarea
@@ -207,7 +207,7 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
               {(session.tickets || [])
                 .filter(t => t.column === col && canViewTicket(t))
                 .map(ticket => (
-                  <div key={ticket.id} className={`p-6 rounded-2xl border-2 group relative shadow-sm hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-2 ${getColumnColorClass(ticket.column)} ${getColumnSurfaceClass(ticket.column)}`}>
+                  <div key={ticket.id} className={`p-4 md:p-6 rounded-2xl border-2 group relative shadow-sm hover:shadow-md transition-shadow animate-in fade-in slide-in-from-bottom-2 ${getColumnColorClass(ticket.column)} ${getColumnSurfaceClass(ticket.column)}`}>
                     {editingTicketId === ticket.id ? (
                       <div className="flex flex-col gap-3">
                         <textarea
@@ -239,13 +239,14 @@ const BrainstormBoard: React.FC<Props> = ({ session, currentUser, participants, 
                             <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold uppercase ${getTicketAvatarClass()}`}>{ticket.author[0]}</div>
                             <span className={`text-xs font-bold ${getTicketMetaTextClass()}`}>By {ticket.author}</span>
                           </div>
-                          <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          {/* Always shown on touch layouts: there is no hover to reveal them. */}
+                          <div className="flex items-center gap-1 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all">
                             {(currentUser.isAdmin || String(ticket.authorId) === String(currentUser.id)) && (
                               <>
-                                <button onClick={() => startEditing(ticket)} className="p-2 text-text-muted hover:text-primary transition-colors">
+                                <button onClick={() => startEditing(ticket)} aria-label="Edit card" className="p-2.5 text-text-muted hover:text-primary transition-colors touch-manipulation">
                                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
                                 </button>
-                                <button onClick={() => deleteTicket(ticket.id)} className="p-2 text-text-muted hover:text-red-600 transition-colors">
+                                <button onClick={() => deleteTicket(ticket.id)} aria-label="Delete card" className="p-2.5 text-text-muted hover:text-red-600 transition-colors touch-manipulation">
                                   <Trash2 className="w-4 h-4" />
                                 </button>
                               </>

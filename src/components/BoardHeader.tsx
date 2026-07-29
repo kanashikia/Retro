@@ -58,26 +58,28 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
   }, []);
 
   return (
-    <header className="bg-surface/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm transition-colors duration-300">
-      <div className="flex items-center gap-5">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-inner transition-colors duration-300"><LayoutDashboard className="text-white w-5 h-5" /></div>
+    <header className="bg-surface/80 backdrop-blur-md border-b border-border px-3 py-2.5 sm:px-6 sm:py-4 flex flex-wrap items-center justify-between gap-y-2 gap-x-3 sticky top-0 z-30 shadow-sm transition-colors duration-300">
+      <div className="flex min-w-0 items-center gap-3 sm:gap-5">
+        <div className="flex items-center gap-3 shrink-0">
+          <div className="w-9 h-9 sm:w-10 sm:h-10 bg-primary rounded-xl flex items-center justify-center shadow-inner transition-colors duration-300"><LayoutDashboard className="text-white w-5 h-5" /></div>
           <span className="font-black text-2xl text-text tracking-tight hidden sm:inline transition-colors duration-300">Retro</span>
         </div>
-        <div className="h-8 w-px bg-border hidden xs:block transition-colors duration-300"></div>
+        <div className="h-8 w-px bg-border hidden sm:block transition-colors duration-300"></div>
 
-        <div className="flex items-center gap-3 md:gap-6">
-          <div className="flex items-center gap-2 px-4 py-2 bg-secondary/50 rounded-full text-sm font-bold text-primary border border-border shadow-sm transition-colors duration-300">
-            <Users className="w-4 h-4" />
-            <span className="text-text">{currentUser.name}</span>
-            {currentUser.isAdmin && <span className="bg-primary text-white text-[10px] uppercase px-1.5 py-0.5 rounded ml-1 font-black">Admin</span>}
+        <div className="flex min-w-0 items-center gap-3 md:gap-6">
+          <div className="flex min-w-0 items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-secondary/50 rounded-full text-sm font-bold text-primary border border-border shadow-sm transition-colors duration-300">
+            <Users className="w-4 h-4 shrink-0" />
+            <span className="text-text truncate">{currentUser.name}</span>
+            {currentUser.isAdmin && <span className="bg-primary text-white text-[10px] uppercase px-1.5 py-0.5 rounded ml-1 font-black shrink-0">Admin</span>}
           </div>
 
           {session.brainstormTimerEndsAt && (
             <Timer endsAt={session.brainstormTimerEndsAt} />
           )}
 
-          <div className="flex items-center">
+          {/* Presence is a desktop-only affordance: on mobile the header has no room for it,
+              and every phase already surfaces participants in its own toolbar. */}
+          <div className="hidden md:flex items-center">
             <div className="flex -space-x-3 items-center">
               {participants.filter(p => p.id !== currentUser.id).slice(0, 5).map(p => (
                 <div
@@ -107,14 +109,14 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
           </div>
         </div>
       </div>
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-1 sm:gap-3 shrink-0">
         <div className="relative" ref={themeDropdownRef}>
           <button
             onClick={() => setIsThemeOpen(!isThemeOpen)}
-            className={`p-2.5 rounded-xl transition-colors border ${isThemeOpen ? 'bg-secondary text-text border-border' : 'text-text-muted hover:bg-secondary hover:text-text border-transparent hover:border-border'}`}
+            className={`p-2 sm:p-2.5 rounded-xl transition-colors border touch-manipulation ${isThemeOpen ? 'bg-secondary text-text border-border' : 'text-text-muted hover:bg-secondary hover:text-text border-transparent hover:border-border'}`}
             title="Change Theme"
           >
-            <Palette className="w-6 h-6" />
+            <Palette className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
 
           {isThemeOpen && (
@@ -173,19 +175,19 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
             </div>
           )}
         </div>
-        {error && <div className="text-red-600 text-sm font-bold px-4 py-2 bg-red-50 rounded-lg flex items-center gap-2 animate-pulse"><AlertCircle className="w-4 h-4" /> {error}</div>}
+        {error && <div className="order-last w-full sm:order-none sm:w-auto text-red-600 text-sm font-bold px-4 py-2 bg-red-50 rounded-lg flex items-center gap-2 animate-pulse"><AlertCircle className="w-4 h-4 shrink-0" /> {error}</div>}
         {currentUser.isAdmin && (
-          <button onClick={onNextPhase} disabled={isLoading} className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-5 py-2.5 rounded-xl text-base font-bold transition-all shadow-md active:scale-95 disabled:opacity-50">
+          <button onClick={onNextPhase} disabled={isLoading} className="flex items-center gap-2 bg-primary hover:bg-primary-hover text-white px-3 py-2 sm:px-5 sm:py-2.5 rounded-xl text-sm sm:text-base font-bold whitespace-nowrap transition-all shadow-md active:scale-95 disabled:opacity-50 touch-manipulation">
             {isLoading ? (
               <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
             ) : (
               <>
                 {session.phase === RetroPhase.BRAINSTORM ? (
-                  <Sparkles className="w-5 h-5" />
+                  <Sparkles className="w-5 h-5 shrink-0" />
                 ) : session.phase === RetroPhase.DISCUSSION ? (
-                  <CheckCircle2 className="w-5 h-5" />
+                  <CheckCircle2 className="w-5 h-5 shrink-0" />
                 ) : (
-                  <ChevronRight className="w-5 h-5" />
+                  <ChevronRight className="w-5 h-5 shrink-0" />
                 )}
                 <span>
                   {session.phase === RetroPhase.BRAINSTORM
@@ -202,17 +204,17 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
           <div className="relative" ref={historyDropdownRef}>
             <button
               onClick={() => setIsHistoryOpen(!isHistoryOpen)}
-              className={`p-2.5 rounded-xl transition-colors border ${isHistoryOpen ? 'bg-secondary text-primary border-border' : 'text-text-muted hover:bg-secondary hover:text-text border-transparent hover:border-border'}`}
+              className={`p-2 sm:p-2.5 rounded-xl transition-colors border touch-manipulation ${isHistoryOpen ? 'bg-secondary text-primary border-border' : 'text-text-muted hover:bg-secondary hover:text-text border-transparent hover:border-border'}`}
               title="View Previous Session Actions"
             >
-              <History className="w-6 h-6" />
+              <History className="w-5 h-5 sm:w-6 sm:h-6" />
               <div className="absolute -top-1 -right-1 w-4 h-4 bg-primary text-white text-[8px] font-black rounded-full flex items-center justify-center border-2 border-surface">
                 {previousActions.length}
               </div>
             </button>
 
             {isHistoryOpen && (
-              <div className="absolute right-0 top-full mt-2 w-80 bg-surface border-2 border-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
+              <div className="absolute right-0 top-full mt-2 w-[min(20rem,calc(100vw-1.5rem))] bg-surface border-2 border-border rounded-2xl shadow-2xl overflow-hidden z-50 animate-in fade-in zoom-in-95 duration-200">
                 <div className="p-4 border-b border-border bg-secondary/30 flex items-center justify-between">
                   <span className="text-xs font-black text-text uppercase tracking-widest flex items-center gap-2">
                     <History className="w-4 h-4 text-primary" /> Last Session Takeaways
@@ -240,12 +242,12 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
         )}
         <button
           onClick={() => exportSessionToPdf(session, participants)}
-          className="p-2.5 hover:bg-secondary rounded-xl text-text-muted hover:text-text transition-colors border border-transparent hover:border-border"
+          className="p-2 sm:p-2.5 hover:bg-secondary rounded-xl text-text-muted hover:text-text transition-colors border border-transparent hover:border-border touch-manipulation"
           title="Export session as PDF"
         >
-          <FileDown className="w-6 h-6" />
+          <FileDown className="w-5 h-5 sm:w-6 sm:h-6" />
         </button>
-        <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("Link copied!"); }} className="p-2.5 hover:bg-secondary rounded-xl text-text-muted hover:text-text transition-colors border border-transparent hover:border-border" title="Copy share link"><Copy className="w-6 h-6" /></button>
+        <button onClick={() => { navigator.clipboard.writeText(window.location.href); alert("Link copied!"); }} className="p-2 sm:p-2.5 hover:bg-secondary rounded-xl text-text-muted hover:text-text transition-colors border border-transparent hover:border-border touch-manipulation" title="Copy share link"><Copy className="w-5 h-5 sm:w-6 sm:h-6" /></button>
         <button onClick={() => {
           if (currentUser.isAdmin) {
             if (window.confirm("Do you want to close this session for everyone? This will save it to your history.")) {
@@ -254,7 +256,7 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
           } else {
             onReset();
           }
-        }} className="p-2.5 hover:bg-red-50 rounded-xl text-red-600 transition-colors border border-transparent hover:border-red-100" title="Leave session"><LogOut className="w-6 h-6" /></button>
+        }} className="p-2 sm:p-2.5 hover:bg-red-50 rounded-xl text-red-600 transition-colors border border-transparent hover:border-red-100 touch-manipulation" title="Leave session"><LogOut className="w-5 h-5 sm:w-6 sm:h-6" /></button>
       </div>
     </header>
   );

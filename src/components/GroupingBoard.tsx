@@ -36,6 +36,9 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction
   const [dragOverGroupId, setDragOverGroupId] = useState<string | null>(null);
   const [oversizedTicketIds, setOversizedTicketIds] = useState<Set<string>>(new Set());
   const [manuallyCollapsedTicketIds, setManuallyCollapsedTicketIds] = useState<Set<string>>(new Set());
+  // Touch devices get no HTML5 drag and drop, so moving a card also has to work as a
+  // plain pick-target flow. Track by id so the sheet follows live session updates.
+  const [movingTicketId, setMovingTicketId] = useState<string | null>(null);
 
   const moveTicket = useCallback((ticketId: string, themeId: string | undefined) => {
     socket.emit('grouping:move-ticket', { sessionId: session.id, ticketId, themeId: themeId ?? null });
@@ -144,6 +147,14 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction
   const unassignedTickets = (session.tickets || []).filter(t => !t.themeId);
   const totalVisibleGroups = (session.themes || []).length + (unassignedTickets.length > 0 ? 1 : 0);
   const groupMinWidth = getGroupMinWidth(totalVisibleGroups);
+  const movingTicket = movingTicketId
+    ? (session.tickets || []).find(t => t.id === movingTicketId)
+    : undefined;
+
+  const moveTicketFromSheet = (themeId: string | undefined) => {
+    if (movingTicket && movingTicket.themeId !== themeId) moveTicket(movingTicket.id, themeId);
+    setMovingTicketId(null);
+  };
 
   const CompactTicket = ({ ticket }: { ticket: Ticket }) => {
     const textRef = useRef<HTMLSpanElement | null>(null);
@@ -176,7 +187,15 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction
         title={`${ticket.column} · ${ticket.text}`}
         className={`flex items-center gap-2 rounded-lg border border-transparent border-l-[3px] px-2 py-1.5 cursor-grab active:cursor-grabbing transition-all text-[12px] leading-snug group/ticket shadow-sm ${isOversized ? 'cursor-pointer' : ''} ${getColumnColorClass(ticket.column)} ${getColumnSurfaceClass(ticket.column)}`}
       >
-        <GripVertical className="w-2.5 h-2.5 text-text-muted/40 shrink-0 self-center group-hover/ticket:text-text-muted transition-colors" />
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); setMovingTicketId(ticket.id); }}
+          title="Move to another group"
+          aria-label={`Move "${ticket.text}" to another group`}
+          className="shrink-0 self-center -my-1 -ml-1 p-2 rounded-lg text-text-muted/40 hover:text-text-muted hover:bg-black/5 transition-colors touch-manipulation"
+        >
+          <GripVertical className="w-2.5 h-2.5" />
+        </button>
         <span
           aria-hidden="true"
           className={`inline-flex h-4 min-w-4 items-center justify-center self-center rounded-full border shrink-0 ${getColumnSecondaryColorClass(ticket.column)}`}
@@ -252,7 +271,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction
                         if (e.key === 'Enter') saveThemeName();
                         if (e.key === 'Escape') setEditingThemeId(null);
                       }}
-                      className="w-full rounded-lg border border-border bg-background px-2.5 py-2 text-sm font-semibold text-text outline-none transition-all focus:border-primary"
+                      className="w-full rounded-lg border border-border bg-background px-2.5 py-2 text-base sm:text-sm font-semibold text-text outline-none transition-all focus:border-primary"
                     />
                     <button onClick={saveThemeName} className="shrink-0 rounded-lg bg-green-500 p-2 text-white transition-colors hover:bg-green-600">
                       <Check className="w-4 h-4" />
@@ -286,13 +305,15 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction
             <div className="flex items-center gap-0.5 shrink-0" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => startEditing(theme)}
-                className="p-1 text-text-muted hover:text-text hover:bg-secondary rounded transition-all"
+                aria-label={`Rename ${title}`}
+                className="p-2 text-text-muted hover:text-text hover:bg-secondary rounded transition-all touch-manipulation"
               >
                 <Edit2 className="w-3.5 h-3.5" />
               </button>
               <button
                 onClick={() => deleteTheme(theme.id)}
-                className="p-1 text-text-muted hover:text-red-500 hover:bg-red-50 rounded transition-all"
+                aria-label={`Delete ${title}`}
+                className="p-2 text-text-muted hover:text-red-500 hover:bg-red-50 rounded transition-all touch-manipulation"
               >
                 <Trash2 className="w-3.5 h-3.5" />
               </button>
@@ -301,8 +322,10 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction
         </div>
 
         {/* Ticket list — scrollable */}
+        {/* Capped and scrollable on desktop; on mobile it grows so the page is the only
+            scroll container — a nested one traps the swipe. */}
         {!isCollapsed && (
-          <div className="p-2 space-y-1 max-h-[min(320px,calc(100vh-320px))] overflow-y-auto">
+          <div className="p-2 space-y-1 overflow-visible sm:max-h-[min(320px,calc(100vh-320px))] sm:overflow-y-auto">
             {tickets.map(t => (
               <CompactTicket key={t.id} ticket={t} />
             ))}
@@ -378,7 +401,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction
                 onChange={(e) => setNewThemeName(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && addTheme()}
                 placeholder="Group name..."
-                className="px-3 py-1.5 border-2 border-border rounded-lg focus:border-primary outline-none transition-all text-sm text-text bg-background w-36"
+                className="px-3 py-1.5 border-2 border-border rounded-lg focus:border-primary outline-none transition-all text-base sm:text-sm text-text bg-background w-36"
               />
               <button onClick={addTheme} className="p-1.5 bg-green-500 text-white rounded-lg hover:bg-green-600 transition-colors">
                 <Check className="w-4 h-4" />
@@ -393,7 +416,7 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction
 
       {/* Wrapping columns */}
       <div
-        className="grid items-start gap-4 pb-4 w-full max-w-[75%] mx-auto lg:max-w-none"
+        className="grid items-start gap-4 pb-4 w-full max-w-none md:max-w-[75%] md:mx-auto lg:max-w-none"
         style={{
           gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${groupMinWidth}px), 1fr))`,
         }}
@@ -421,6 +444,42 @@ const GroupingBoard: React.FC<Props> = ({ session, currentUser, onToggleReaction
           />
         ))}
       </div>
+
+      {/* Drag-free way to reassign a card — the only one that works on touch. */}
+      {movingTicket && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center" role="dialog" aria-modal="true" aria-label="Move card to a group">
+          <div className="absolute inset-0 bg-black/40" onClick={() => setMovingTicketId(null)} />
+          <div className="relative flex max-h-[75vh] w-full flex-col rounded-t-2xl border border-border bg-surface shadow-2xl sm:max-w-md sm:rounded-2xl">
+            <div className="border-b border-border p-4">
+              <h4 className="text-sm font-black uppercase tracking-widest text-text-muted">Move card to</h4>
+              <p className="mt-1 text-sm font-semibold text-text break-words">{movingTicket.text}</p>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2">
+              {[{ id: undefined as string | undefined, name: 'Unassigned' }, ...(session.themes || [])].map(group => {
+                const isCurrent = (movingTicket.themeId || undefined) === group.id;
+                return (
+                  <button
+                    key={group.id ?? '__unassigned__'}
+                    onClick={() => moveTicketFromSheet(group.id)}
+                    className={`flex w-full items-center justify-between gap-3 rounded-xl px-4 py-3 text-left text-sm font-bold transition-colors touch-manipulation ${isCurrent ? 'bg-primary/10 text-primary' : 'text-text hover:bg-secondary'}`}
+                  >
+                    <span className="min-w-0 break-words">{group.name}</span>
+                    {isCurrent && <Check className="w-4 h-4 shrink-0" />}
+                  </button>
+                );
+              })}
+            </div>
+            <div className="border-t border-border p-2">
+              <button
+                onClick={() => setMovingTicketId(null)}
+                className="w-full rounded-xl px-4 py-3 text-sm font-bold text-text-muted transition-colors hover:bg-secondary touch-manipulation"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

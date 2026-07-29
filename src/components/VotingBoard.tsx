@@ -79,11 +79,11 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {themes.length > 0 && (
             <button
               onClick={toggleAllThemes}
-              className="inline-flex items-center gap-1.5 px-3 py-2 bg-secondary hover:bg-secondary-hover text-text rounded-xl font-bold text-xs transition-all shadow-sm active:scale-[0.97]"
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-secondary hover:bg-border text-text rounded-xl font-bold text-xs transition-all shadow-sm active:scale-[0.97] touch-manipulation"
             >
               {allCollapsed
                 ? <ChevronsUpDown className="w-3.5 h-3.5" />
@@ -185,8 +185,10 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
                 {themeTickets.length} card{themeTickets.length !== 1 ? 's' : ''}
               </button>
 
+              {/* Desktop caps this list and scrolls it; mobile lets it grow so the page
+                  stays the single scroll container. */}
               {isExpanded && (
-                <div className="flex-1 bg-background/50 rounded-lg p-2 space-y-1.5 max-h-[200px] overflow-y-auto border border-border/50 mb-2">
+                <div className="flex-1 bg-background/50 rounded-lg p-2 space-y-1.5 overflow-visible sm:max-h-[200px] sm:overflow-y-auto border border-border/50 mb-2">
                   {themeTickets.map(t => (
                     <div
                       key={t.id}
@@ -232,8 +234,9 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
                 {userVotes > 0 && (
                   <button
                     onClick={() => handleRemoveVote(theme.id)}
-                    className="p-2 bg-secondary hover:bg-secondary-hover text-text rounded-lg transition-all shadow-sm active:scale-[0.97]"
+                    className="px-3 py-2.5 bg-secondary hover:bg-border text-text rounded-lg transition-all shadow-sm active:scale-[0.97] touch-manipulation"
                     title="Remove a vote"
+                    aria-label={`Remove a vote from ${theme.name}`}
                   >
                     <Minus className="w-4 h-4" />
                   </button>
@@ -241,7 +244,7 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
                 <button
                   disabled={currentUser.votesRemaining <= 0}
                   onClick={() => handleVote(theme.id)}
-                  className="flex-1 py-2 bg-primary hover:bg-primary-hover text-white rounded-lg font-bold text-[12px] transition-all shadow-sm active:scale-[0.97] disabled:opacity-20 flex items-center justify-center gap-1.5"
+                  className="flex-1 py-2.5 bg-primary hover:bg-primary-hover text-white rounded-lg font-bold text-[12px] transition-all shadow-sm active:scale-[0.97] disabled:opacity-20 flex items-center justify-center gap-1.5 touch-manipulation"
                 >
                   <Plus className="w-3.5 h-3.5" /> Vote
                 </button>

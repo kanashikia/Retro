@@ -7,6 +7,10 @@ interface Props {
 }
 
 const COMMON_EMOJIS = ['👍', '❤️', '🔥', '😮', '😂', '😢', '🚀', '✅'];
+// Roughly the rendered width of the row: 8 emoji buttons + padding. Used to keep the
+// popover inside a narrow viewport instead of running off the right edge.
+const PICKER_WIDTH = 300;
+const VIEWPORT_MARGIN = 8;
 
 const ReactionPicker: React.FC<Props> = ({ onSelect }) => {
     const [isOpen, setIsOpen] = useState(false);
@@ -16,9 +20,10 @@ const ReactionPicker: React.FC<Props> = ({ onSelect }) => {
     useEffect(() => {
         if (isOpen && btnRef.current) {
             const rect = btnRef.current.getBoundingClientRect();
+            const maxLeft = window.innerWidth - PICKER_WIDTH - VIEWPORT_MARGIN;
             setPos({
                 top: rect.top - 4,
-                left: rect.left
+                left: Math.max(VIEWPORT_MARGIN, Math.min(rect.left, maxLeft))
             });
         }
     }, [isOpen]);
@@ -31,8 +36,9 @@ const ReactionPicker: React.FC<Props> = ({ onSelect }) => {
                     e.stopPropagation();
                     setIsOpen(!isOpen);
                 }}
-                className="p-1.5 text-text-muted hover:text-primary hover:bg-secondary rounded-lg transition-all"
+                className="p-2 text-text-muted hover:text-primary hover:bg-secondary rounded-lg transition-all touch-manipulation"
                 title="Add reaction"
+                aria-label="Add reaction"
             >
                 <Smile className="w-4 h-4" />
             </button>
@@ -55,7 +61,7 @@ const ReactionPicker: React.FC<Props> = ({ onSelect }) => {
                                     onSelect(emoji);
                                     setIsOpen(false);
                                 }}
-                                className="p-1.5 hover:bg-secondary rounded-lg transition-transform hover:scale-125 text-lg leading-none"
+                                className="p-2 hover:bg-secondary rounded-lg transition-transform hover:scale-125 text-lg leading-none touch-manipulation"
                             >
                                 {emoji}
                             </button>
