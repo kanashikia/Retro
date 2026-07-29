@@ -70,7 +70,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
   );
 
   return (
-    <div ref={rootRef} className="max-w-7xl mx-auto h-full flex flex-col gap-6 py-6">
+    <div ref={rootRef} className="max-w-7xl mx-auto h-full flex flex-col gap-6 pb-6">
       {/* Topic nav sits above the topic header on purpose: everything below it (title,
           description, card grid) has a content-dependent height, so anchoring the nav
           under them made the buttons land at a different spot on every topic. */}
