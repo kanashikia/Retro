@@ -103,6 +103,41 @@ describe('VotingBoard', () => {
         expect(button?.disabled).toBe(true);
     });
 
+    it('expands theme cards by default', () => {
+        const currentUser = { id: 'user1', name: 'User 1', isAdmin: false, votesRemaining: 3 };
+        render(
+            <VotingBoard
+                session={mockSession as any}
+                currentUser={currentUser as any}
+                participants={participants as any}
+                onUpdateUser={vi.fn()}
+                onToggleReaction={vi.fn()}
+            />
+        );
+
+        expect(screen.getByText('Slow loading')).toBeDefined();
+        expect(screen.getByText('Collapse all')).toBeDefined();
+    });
+
+    it('collapses and expands every theme from the header button', () => {
+        const currentUser = { id: 'user1', name: 'User 1', isAdmin: false, votesRemaining: 3 };
+        render(
+            <VotingBoard
+                session={mockSession as any}
+                currentUser={currentUser as any}
+                participants={participants as any}
+                onUpdateUser={vi.fn()}
+                onToggleReaction={vi.fn()}
+            />
+        );
+
+        fireEvent.click(screen.getByText('Collapse all'));
+        expect(screen.queryByText('Slow loading')).toBeNull();
+
+        fireEvent.click(screen.getByText('Expand all'));
+        expect(screen.getByText('Slow loading')).toBeDefined();
+    });
+
     it('shows participant status to admin', () => {
         const adminUser = { id: 'admin1', name: 'Admin', isAdmin: true, votesRemaining: 5 };
         render(

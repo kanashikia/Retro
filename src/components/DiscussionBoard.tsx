@@ -27,6 +27,12 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
   const [newActionText, setNewActionText] = React.useState('');
   const [selectedAssigneeId, setSelectedAssigneeId] = React.useState('');
   const isReadOnly = session.status === 'closed';
+  const rootRef = React.useRef<HTMLDivElement>(null);
+
+  // Topic changed: bring the new topic back to the top of the viewport.
+  React.useEffect(() => {
+    rootRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [session.currentThemeIndex]);
 
 
   const handleAddAction = () => {
@@ -60,7 +66,7 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
   );
 
   return (
-    <div className="max-w-7xl mx-auto h-full flex flex-col gap-6 py-6">
+    <div ref={rootRef} className="max-w-7xl mx-auto h-full flex flex-col gap-6 py-6">
       <div className="text-center space-y-6 animate-in fade-in slide-in-from-top-6">
         <div className="flex items-center justify-center gap-4">
           <div className="inline-flex items-center px-4 py-2 bg-primary/10 text-primary text-sm font-black rounded-xl uppercase tracking-widest border border-primary/20">

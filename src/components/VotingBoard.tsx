@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Vote, Plus, Minus, ChevronDown, ChevronRight } from 'lucide-react';
+import { Vote, Plus, Minus, ChevronDown, ChevronRight, ChevronsDownUp, ChevronsUpDown } from 'lucide-react';
 import { SessionState, User } from '../types';
 import {
   getColumnColorClass,
@@ -25,11 +25,14 @@ interface Props {
 }
 
 const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUpdateUser, onToggleReaction }) => {
-  const [expandedThemes, setExpandedThemes] = useState<Set<string>>(new Set());
+  // Themes are expanded by default: we only track the ones explicitly collapsed.
+  const [collapsedThemes, setCollapsedThemes] = useState<Set<string>>(new Set());
   const currentUserId = String(currentUser.id);
+  const themes = session.themes || [];
+  const allCollapsed = themes.length > 0 && themes.every(t => collapsedThemes.has(t.id));
 
   const getVotesForUser = (userId: string) => {
-    return (session.themes || []).reduce((acc, theme) =>
+    return themes.reduce((acc, theme) =>
       acc + (theme.voterIds?.filter(id => String(id) === String(userId)).length || 0), 0);
   };
 
@@ -40,7 +43,7 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
   };
 
   const handleRemoveVote = (themeId: string) => {
-    const theme = (session.themes || []).find(t => t.id === themeId);
+    const theme = themes.find(t => t.id === themeId);
     if (!theme) return;
     const userVoteIndex = (theme.voterIds || []).findLastIndex(id => String(id) === currentUserId);
     if (userVoteIndex === -1) return;
@@ -49,12 +52,16 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
   };
 
   const toggleThemeExpand = (themeId: string) => {
-    setExpandedThemes(prev => {
+    setCollapsedThemes(prev => {
       const next = new Set(prev);
       if (next.has(themeId)) next.delete(themeId);
       else next.add(themeId);
       return next;
     });
+  };
+
+  const toggleAllThemes = () => {
+    setCollapsedThemes(allCollapsed ? new Set() : new Set(themes.map(t => t.id)));
   };
 
   return (
@@ -72,13 +79,27 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
             </p>
           </div>
         </div>
-        <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-xl font-black text-sm shadow-sm shrink-0 ${
-          currentUser.votesRemaining > 0
-            ? 'bg-primary text-white animate-pulse'
-            : 'bg-secondary text-text-muted'
-        }`}>
-          <Vote className="w-4 h-4" />
-          <span>{currentUser.votesRemaining} votes left</span>
+        <div className="flex items-center gap-2 shrink-0">
+          {themes.length > 0 && (
+            <button
+              onClick={toggleAllThemes}
+              className="inline-flex items-center gap-1.5 px-3 py-2 bg-secondary hover:bg-secondary-hover text-text rounded-xl font-bold text-xs transition-all shadow-sm active:scale-[0.97]"
+            >
+              {allCollapsed
+                ? <ChevronsUpDown className="w-3.5 h-3.5" />
+                : <ChevronsDownUp className="w-3.5 h-3.5" />
+              }
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
+            </button>
+          )}
+          <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-xl font-black text-sm shadow-sm ${
+            currentUser.votesRemaining > 0
+              ? 'bg-primary text-white animate-pulse'
+              : 'bg-secondary text-text-muted'
+          }`}>
+            <Vote className="w-4 h-4" />
+            <span>{currentUser.votesRemaining} votes left</span>
+          </div>
         </div>
       </div>
 
@@ -126,11 +147,11 @@ const VotingBoard: React.FC<Props> = ({ session, currentUser, participants, onUp
             gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${VOTING_CARD_MIN_WIDTH}px), 1fr))`,
           }}
         >
-        {(session.themes || []).map(theme => {
+        {themes.map(theme => {
           const userVotes = theme.voterIds.filter(id => String(id) === currentUserId).length;
           const hasVoted = userVotes > 0;
           const themeTickets = (session.tickets || []).filter(t => t.themeId === theme.id);
-          const isExpanded = expandedThemes.has(theme.id);
+          const isExpanded = !collapsedThemes.has(theme.id);
 
           return (
             <div
