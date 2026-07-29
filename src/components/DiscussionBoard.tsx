@@ -129,7 +129,9 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
       </div>
 
       {currentUser.isAdmin && (
-        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 py-4 border-y border-border bg-surface/50 rounded-2xl md:rounded-[2.5rem]">
+        // Pinned to the bottom of the viewport: the topic header and its card grid vary
+        // wildly in height, and the nav used to move with them.
+        <div className="sticky bottom-0 z-20 flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 py-4 border-y border-border bg-surface/80 backdrop-blur-md shadow-sm rounded-2xl md:rounded-[2.5rem]">
           <button
             disabled={session.currentThemeIndex === 0}
             onClick={() => socket.emit('discussion:set-current-theme', { sessionId: session.id, index: session.currentThemeIndex - 1 })}
