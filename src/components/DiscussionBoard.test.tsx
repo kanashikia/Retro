@@ -34,9 +34,10 @@ describe('DiscussionBoard', () => {
 
     const currentUser = { id: 'user1', name: 'User 1', isAdmin: false, votesRemaining: 0 };
 
-    // jsdom has no scrollIntoView implementation.
+    // jsdom implements neither Element.scrollTo nor a real window.scrollTo.
     beforeEach(() => {
-        (Element.prototype as any).scrollIntoView = vi.fn();
+        (Element.prototype as any).scrollTo = vi.fn();
+        window.scrollTo = vi.fn() as any;
     });
 
     it('displays the current topic', () => {
@@ -53,8 +54,25 @@ describe('DiscussionBoard', () => {
         expect(screen.getByText('Topic 1 of 2')).toBeDefined();
     });
 
-    it('scrolls back to the top when the topic changes', () => {
-        const scrollIntoView = (Element.prototype as any).scrollIntoView;
+    it('renders the topic nav above the topic header, so it keeps one position across topics', () => {
+        const adminUser = { id: 'admin1', name: 'Admin', isAdmin: true, votesRemaining: 0 };
+        render(
+            <DiscussionBoard
+                session={makeSession(0) as any}
+                currentUser={adminUser as any}
+                participants={participants as any}
+                onToggleReaction={vi.fn()}
+            />
+        );
+
+        const nav = screen.getByRole('button', { name: /next topic/i });
+        const title = screen.getByText('Performance');
+
+        // Anything whose height depends on the theme's content must come after the nav.
+        expect(nav.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('scrolls back to the top of the page when the topic changes', () => {
         const { rerender } = render(
             <DiscussionBoard
                 session={makeSession(0) as any}
@@ -64,7 +82,7 @@ describe('DiscussionBoard', () => {
             />
         );
 
-        scrollIntoView.mockClear();
+        (window.scrollTo as any).mockClear();
 
         rerender(
             <DiscussionBoard
@@ -76,6 +94,6 @@ describe('DiscussionBoard', () => {
         );
 
         expect(screen.getByText('Communication')).toBeDefined();
-        expect(scrollIntoView).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+        expect(window.scrollTo).toHaveBeenCalledWith({ top: 0, behavior: 'smooth' });
     });
 });
