@@ -54,6 +54,24 @@ describe('DiscussionBoard', () => {
         expect(screen.getByText('Topic 1 of 2')).toBeDefined();
     });
 
+    it('renders the topic nav above the topic header, so it keeps one position across topics', () => {
+        const adminUser = { id: 'admin1', name: 'Admin', isAdmin: true, votesRemaining: 0 };
+        render(
+            <DiscussionBoard
+                session={makeSession(0) as any}
+                currentUser={adminUser as any}
+                participants={participants as any}
+                onToggleReaction={vi.fn()}
+            />
+        );
+
+        const nav = screen.getByRole('button', { name: /next topic/i });
+        const title = screen.getByText('Performance');
+
+        // Anything whose height depends on the theme's content must come after the nav.
+        expect(nav.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     it('scrolls back to the top of the page when the topic changes', () => {
         const { rerender } = render(
             <DiscussionBoard

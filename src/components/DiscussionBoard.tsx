@@ -71,6 +71,31 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
 
   return (
     <div ref={rootRef} className="max-w-7xl mx-auto h-full flex flex-col gap-6 py-6">
+      {/* Topic nav sits above the topic header on purpose: everything below it (title,
+          description, card grid) has a content-dependent height, so anchoring the nav
+          under them made the buttons land at a different spot on every topic. */}
+      {currentUser.isAdmin && (
+        <div className="flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 py-4 border-y border-border bg-surface/50 rounded-2xl md:rounded-[2.5rem]">
+          <button
+            disabled={session.currentThemeIndex === 0}
+            onClick={() => socket.emit('discussion:set-current-theme', { sessionId: session.id, index: session.currentThemeIndex - 1 })}
+            className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-surface border-2 border-border rounded-xl md:rounded-2xl font-black text-text hover:bg-secondary transition-all disabled:opacity-30 shadow-sm active:scale-95 text-xs md:text-sm"
+          >
+            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" /> Previous
+          </button>
+          <div className="text-[10px] md:text-xs font-black text-text-muted uppercase tracking-widest min-w-[80px] md:min-w-[100px] text-center">
+            {session.currentThemeIndex + 1} / {(session.themes || []).length}
+          </div>
+          <button
+            disabled={session.currentThemeIndex === (session.themes || []).length - 1}
+            onClick={() => socket.emit('discussion:set-current-theme', { sessionId: session.id, index: session.currentThemeIndex + 1 })}
+            className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-primary text-white rounded-xl md:rounded-2xl font-black hover:bg-primary-hover transition-all disabled:opacity-30 shadow-xl shadow-primary/20 active:scale-95 text-xs md:text-sm"
+          >
+            Next Topic <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
+          </button>
+        </div>
+      )}
+
       <div className="text-center space-y-6 animate-in fade-in slide-in-from-top-6">
         <div className="flex items-center justify-center gap-4">
           <div className="inline-flex items-center px-4 py-2 bg-primary/10 text-primary text-sm font-black rounded-xl uppercase tracking-widest border border-primary/20">
@@ -127,30 +152,6 @@ const DiscussionBoard: React.FC<Props> = ({ session, currentUser, participants, 
             ))}
         </div>
       </div>
-
-      {currentUser.isAdmin && (
-        // Pinned to the bottom of the viewport: the topic header and its card grid vary
-        // wildly in height, and the nav used to move with them.
-        <div className="sticky bottom-0 z-20 flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 py-4 border-y border-border bg-surface/80 backdrop-blur-md shadow-sm rounded-2xl md:rounded-[2.5rem]">
-          <button
-            disabled={session.currentThemeIndex === 0}
-            onClick={() => socket.emit('discussion:set-current-theme', { sessionId: session.id, index: session.currentThemeIndex - 1 })}
-            className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-surface border-2 border-border rounded-xl md:rounded-2xl font-black text-text hover:bg-secondary transition-all disabled:opacity-30 shadow-sm active:scale-95 text-xs md:text-sm"
-          >
-            <ChevronLeft className="w-4 h-4 md:w-5 md:h-5" /> Previous
-          </button>
-          <div className="text-[10px] md:text-xs font-black text-text-muted uppercase tracking-widest min-w-[80px] md:min-w-[100px] text-center">
-            {session.currentThemeIndex + 1} / {(session.themes || []).length}
-          </div>
-          <button
-            disabled={session.currentThemeIndex === (session.themes || []).length - 1}
-            onClick={() => socket.emit('discussion:set-current-theme', { sessionId: session.id, index: session.currentThemeIndex + 1 })}
-            className="w-full md:w-auto flex items-center justify-center gap-3 px-8 py-4 bg-primary text-white rounded-xl md:rounded-2xl font-black hover:bg-primary-hover transition-all disabled:opacity-30 shadow-xl shadow-primary/20 active:scale-95 text-xs md:text-sm"
-          >
-            Next Topic <ChevronRight className="w-4 h-4 md:w-5 md:h-5" />
-          </button>
-        </div>
-      )}
 
       {/* Action Items Section */}
       <div className="mt-4 pt-10 border-t border-border space-y-8">
