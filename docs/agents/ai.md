@@ -29,13 +29,16 @@ Server-side AI grouping can try multiple hosted models in order when a model is 
 
 Default order:
 
-- `gemini-3-flash`
+- `gemini-3.8-flash`
+- `gemini-3.5-flash`
+- `gemini-3.5-flash-lite`
 - `gemini-3.1-flash-lite`
 - `gemma-4-31b-it`
-- `gemma-4-26b-it`
-- `gemini-2.5-flash`
+- `gemma-4-26b-a4b-it`
 
 You can override this list with `AI_GROUPING_MODEL_FALLBACKS`, using a comma-separated list of model IDs.
+
+Structured output goes through the SDK's `config` field (`@google/genai` silently ignores `generationConfig`). Gemma models reject JSON mode, so they only get the prompt's JSON instructions; the response is normalized before parsing either way.
 
 ## If You Change AI
 

@@ -402,11 +402,12 @@ const hasUsableGeminiKey =
     !/replace_with|your_|changeme|example|dummy/i.test(geminiApiKey);
 const rawAiGroupingModelFallbacks = (process.env.AI_GROUPING_MODEL_FALLBACKS || '').trim();
 const defaultAiGroupingModels = [
-    'gemini-3-flash',
+    'gemini-3.8-flash',
+    'gemini-3.5-flash',
+    'gemini-3.5-flash-lite',
     'gemini-3.1-flash-lite',
     'gemma-4-31b-it',
-    'gemma-4-26b-it',
-    'gemini-2.5-flash'
+    'gemma-4-26b-a4b-it'
 ];
 const aiGroupingModels = (rawAiGroupingModelFallbacks
     ? rawAiGroupingModelFallbacks.split(',')
@@ -427,6 +428,12 @@ if (!hasUsableGeminiKey) {
 
 const isAiAuthError = (message) => /api key|unauth|auth|401|403|invalid/i.test(message);
 const isAiNetworkError = (message) => /fetch failed|ENOTFOUND|EAI_AGAIN|ECONNRESET|ETIMEDOUT/i.test(message);
+// Gemma models on the Gemini API reject JSON mode, so they only get the prompt's
+// JSON instructions; the response is still normalized before parsing.
+const supportsStructuredOutput = (model) => !model.startsWith('gemma-');
+const structuredOutputConfig = (model, responseSchema) => (
+    supportsStructuredOutput(model) ? { responseMimeType: 'application/json', responseSchema } : {}
+);
 const isRetryableAiModelError = (message) => /429|quota|rate limit|resource exhausted|exhausted|unavailable|overloaded|internal|deadline|503|500|model.+not found|unsupported|not supported/i.test(message);
 
 const generateAiGroupingContent = async (prompt) => {
@@ -437,38 +444,35 @@ const generateAiGroupingContent = async (prompt) => {
             const result = await ai.models.generateContent({
                 model,
                 contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: {
-                    responseMimeType: "application/json",
-                    responseSchema: {
-                        type: Type.OBJECT,
-                        properties: {
-                            themes: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        id: { type: Type.STRING },
-                                        name: { type: Type.STRING },
-                                        description: { type: Type.STRING }
-                                    },
-                                    required: ["id", "name", "description"]
-                                }
-                            },
-                            assignments: {
-                                type: Type.ARRAY,
-                                items: {
-                                    type: Type.OBJECT,
-                                    properties: {
-                                        ticketId: { type: Type.STRING },
-                                        themeId: { type: Type.STRING }
-                                    },
-                                    required: ["ticketId", "themeId"]
-                                }
+                config: structuredOutputConfig(model, {
+                    type: Type.OBJECT,
+                    properties: {
+                        themes: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    id: { type: Type.STRING },
+                                    name: { type: Type.STRING },
+                                    description: { type: Type.STRING }
+                                },
+                                required: ["id", "name", "description"]
                             }
                         },
-                        required: ["themes", "assignments"]
-                    }
-                }
+                        assignments: {
+                            type: Type.ARRAY,
+                            items: {
+                                type: Type.OBJECT,
+                                properties: {
+                                    ticketId: { type: Type.STRING },
+                                    themeId: { type: Type.STRING }
+                                },
+                                required: ["ticketId", "themeId"]
+                            }
+                        }
+                    },
+                    required: ["themes", "assignments"]
+                })
             });
 
             return { result, model };
@@ -1428,16 +1432,15 @@ Return a JSON object with a "questions" array of exactly ${n} strings in French 
                     const result = await ai.models.generateContent({
                         model,
                         contents: [{ parts: [{ text: prompt }] }],
-                        generationConfig: {
+                        config: {
                             temperature: 1.5,
-                            responseMimeType: 'application/json',
-                            responseSchema: {
+                            ...structuredOutputConfig(model, {
                                 type: Type.OBJECT,
                                 properties: {
                                     questions: { type: Type.ARRAY, items: { type: Type.STRING } }
                                 },
                                 required: ['questions']
-                            }
+                            })
                         }
                     });
                     const rawText = result?.text ?? result?.response?.text?.();
