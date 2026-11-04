@@ -1,6 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { ChevronRight, Sparkles, Users, Trophy, Snowflake } from 'lucide-react';
-import { SessionState, User } from '../types';
+import React, { useEffect, useRef, useState } from 'react';
+import { Shuffle } from 'lucide-react';
+import { IceBreakerGameId, SessionState, User } from '../types';
+import {
+  ICE_BREAKER_GAMES,
+  GamePick,
+  SPIN_REPLAY_WINDOW_MS,
+  wheelGames,
+  availableGames,
+  getGameMeta,
+  resolveGame,
+} from '../icebreaker/games';
+import GameSelect from './icebreaker/GameSelect';
+import GameWheel from './icebreaker/GameWheel';
+import WheelSetup from './icebreaker/WheelSetup';
+import QuestionsGame from './icebreaker/QuestionsGame';
+import EmojiCharadesGame from './icebreaker/EmojiCharadesGame';
+import JustOneGame from './icebreaker/JustOneGame';
+import WouldYouRatherGame from './icebreaker/WouldYouRatherGame';
+import FakeDefinitionGame from './icebreaker/FakeDefinitionGame';
 
 interface Props {
   session: SessionState;
@@ -11,220 +28,248 @@ interface Props {
   onGenerate: () => void;
   onNext: () => void;
   onStartRetro: () => void;
+  onSelectGame: (pick: GamePick) => void;
+  onChangeGame: () => void;
+  // generic game actions (emoji charades, later just one)
+  isStarting: boolean;
+  onStart: () => void;
+  /** `onRejected` runs when the server refuses the submission, so the game can re-enable its input. */
+  onSubmit: (text: string, onRejected: () => void) => void;
+  onAdvance: () => void;
+  /** Admin replaces the current question / charade / word / dilemma with a spare. */
+  onSkip: () => void;
+  /** Admin switches games in or out of the random wheel. */
+  onSetExcludedGames: (excluded: IceBreakerGameId[]) => void;
 }
 
-const SPIN_STEPS = [
-  ...Array(10).fill(55),
-  ...Array(8).fill(85),
-  ...Array(6).fill(120),
-  ...Array(4).fill(190),
-  ...Array(3).fill(280),
-];
-
+// Orchestrates the ice breaker phase: game selection, the random wheel, then
+// the chosen game. Game state itself lives in session.iceBreakerState.
 const IceBreakerBoard: React.FC<Props> = ({
-  session, participants, isAdmin, isGenerating, onGenerate, onNext, onStartRetro
+  session, currentUser, participants, isAdmin, isGenerating, onGenerate, onNext, onStartRetro, onSelectGame, onChangeGame,
+  isStarting, onStart, onSubmit, onAdvance, onSkip, onSetExcludedGames
 }) => {
-  const iceBreaker = session.iceBreakerState;
-  const questions = iceBreaker?.questions ?? [];
-  const currentIndex = iceBreaker?.currentIndex ?? 0;
+  const state = session.iceBreakerState;
+  const gameId = resolveGame(state);
+  const spin = state?.spin;
+  const excluded = state?.excludedGames ?? [];
 
-  const [displayedName, setDisplayedName] = useState('');
-  const [isSpinning, setIsSpinning] = useState(false);
-  const [showQuestion, setShowQuestion] = useState(false);
-  const [revealed, setRevealed] = useState(false);
-  const prevIndexRef = useRef<number | null>(null);
-  const timeoutsRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const [isSelecting, setIsSelecting] = useState(false);
+  const [wheelTarget, setWheelTarget] = useState<typeof gameId>(null);
+  // Admin is on the wheel screen, benching games before spinning.
+  const [setupWheel, setSetupWheel] = useState(false);
+  const seenSpinRef = useRef<string | null>(null);
 
+  // Play the wheel once per spin id, and only if the spin is fresh enough that
+  // we are not a late joiner catching up on old state.
   useEffect(() => {
-    if (questions.length === 0) return;
+    if (!spin || !gameId) return;
+    if (seenSpinRef.current === spin.id) return;
+    seenSpinRef.current = spin.id;
+    if (Date.now() - spin.at <= SPIN_REPLAY_WINDOW_MS) {
+      setWheelTarget(gameId);
+    }
+  }, [spin?.id, spin?.at, gameId]);
 
-    const target = questions[currentIndex];
-    if (!target) return;
+  // Selection is confirmed by the next session update.
+  useEffect(() => { setIsSelecting(false); if (gameId) setSetupWheel(false); }, [gameId, spin?.id]);
+  useEffect(() => {
+    if (!isSelecting) return;
+    const t = setTimeout(() => setIsSelecting(false), 6000);
+    return () => clearTimeout(t);
+  }, [isSelecting]);
 
-    // On first mount, restore current state without animation
-    if (prevIndexRef.current === null) {
-      prevIndexRef.current = currentIndex;
-      setDisplayedName(target.participantName);
-      setShowQuestion(true);
-      setRevealed(true);
+  // Leaving a game that has started loses its progress: ask first.
+  const [confirmChange, setConfirmChange] = useState(false);
+  const step = state?.step;
+  const questionsPending = gameId === 'questions' && (state?.questions?.length ?? 0) > 0
+    && (state?.currentIndex ?? 0) < (state?.questions?.length ?? 0) - 1;
+  // The questions game stays on step 'play' to the end: only its index tells if it is over
+  const inProgress = gameId === 'questions'
+    ? questionsPending
+    : step === 'play' || step === 'collect' || step === 'reveal';
+  const requestChangeGame = () => {
+    if (inProgress) setConfirmChange(true);
+    else onChangeGame();
+  };
+  useEffect(() => { setConfirmChange(false); }, [gameId]);
+
+  const confirmDialog = confirmChange && (
+    <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-labelledby="ib-confirm-title">
+      <div className="bg-surface border border-border rounded-[28px] shadow-2xl w-full max-w-sm p-7 space-y-5 ib-pop">
+        <div className="space-y-2">
+          <h3 id="ib-confirm-title" className="text-xl font-black text-text">Switch game?</h3>
+          <p className="text-text-muted text-sm leading-relaxed">The current game is not over. Its rounds and scores will be lost for everyone.</p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => setConfirmChange(false)} className="flex-1 py-3 rounded-2xl border border-border text-text-muted font-bold hover:bg-secondary transition-colors">
+            Keep playing
+          </button>
+          <button onClick={() => { setConfirmChange(false); onChangeGame(); }} className="flex-1 py-3 rounded-2xl bg-primary text-white font-bold hover:bg-primary-hover transition-colors">
+            Switch game
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const handleSelect = (pick: GamePick) => {
+    // Random opens the wheel screen first; the actual spin is a separate click.
+    if (pick === 'random' && !setupWheel) {
+      setSetupWheel(true);
       return;
     }
+    setIsSelecting(true);
+    onSelectGame(pick);
+  };
 
-    if (prevIndexRef.current === currentIndex) return;
-    prevIndexRef.current = currentIndex;
-
-    // Clear any pending timeouts from a previous spin
-    timeoutsRef.current.forEach(clearTimeout);
-    timeoutsRef.current = [];
-
-    setIsSpinning(true);
-    setShowQuestion(false);
-    setRevealed(false);
-
-    const allNames = questions.map(q => q.participantName);
-    let elapsed = 0;
-
-    SPIN_STEPS.forEach((delay, i) => {
-      elapsed += delay;
-      const t = setTimeout(() => {
-        if (i < SPIN_STEPS.length - 1) {
-          const random = allNames[Math.floor(Math.random() * allNames.length)];
-          setDisplayedName(random);
-        } else {
-          setDisplayedName(target.participantName);
-          setIsSpinning(false);
-          const t2 = setTimeout(() => setRevealed(true), 80);
-          const t3 = setTimeout(() => setShowQuestion(true), 380);
-          timeoutsRef.current.push(t2, t3);
-        }
-      }, elapsed);
-      timeoutsRef.current.push(t);
-    });
-
-    return () => timeoutsRef.current.forEach(clearTimeout);
-  }, [currentIndex, questions]);
-
-  const currentQuestion = questions[currentIndex];
-  const isDone = questions.length > 0 && currentIndex >= questions.length - 1 && showQuestion;
-
-  // No questions yet — waiting room
-  if (questions.length === 0) {
+  if (wheelTarget) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 text-center">
-        <div className="space-y-3">
-          <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto">
-            <Snowflake className="w-10 h-10 text-primary" />
-          </div>
-          <h2 className="text-3xl font-bold text-text">Ice Breaker</h2>
-          <p className="text-text-muted max-w-md mx-auto leading-relaxed">
-            Warm up the team with a fun round of questions before the retro begins.
-          </p>
-        </div>
-
-        <div className="bg-surface border border-border rounded-2xl p-6 w-full max-w-md space-y-4 text-left">
-          <h3 className="font-bold text-text flex items-center gap-2">
-            <Users className="w-5 h-5 text-primary" />
-            Participants ({participants.length})
-          </h3>
-          {participants.length > 0 ? (
-            <div className="flex flex-wrap gap-2">
-              {participants.map(p => (
-                <span key={p.id} className="px-3 py-1.5 bg-primary/10 text-primary rounded-full text-sm font-bold">
-                  {p.name}
-                </span>
-              ))}
-            </div>
-          ) : (
-            <p className="text-text-muted text-sm italic">Waiting for participants to join...</p>
-          )}
-        </div>
-
-        {isAdmin ? (
-          <button
-            onClick={onGenerate}
-            disabled={isGenerating || participants.length === 0}
-            className="flex items-center gap-2 px-8 py-4 bg-primary text-white font-bold rounded-2xl hover:bg-primary-hover transition-all disabled:opacity-50 text-lg shadow-lg shadow-primary/20 active:scale-[0.98]"
-          >
-            <Sparkles className="w-5 h-5" />
-            {isGenerating ? 'Generating questions...' : 'Generate Questions'}
-          </button>
-        ) : (
-          <div className="flex items-center gap-3 text-text-muted">
-            <div className="w-5 h-5 border-2 border-text-muted border-t-transparent rounded-full animate-spin" />
-            <span className="italic">Waiting for the admin to generate questions...</span>
-          </div>
-        )}
-      </div>
+      <GameWheel
+        games={wheelGames(excluded)}
+        targetId={wheelTarget}
+        onDone={() => setWheelTarget(null)}
+      />
     );
   }
 
-  // Main roulette view
+  if (!gameId && setupWheel && isAdmin) {
+    return (
+      <WheelSetup
+        games={availableGames()}
+        excluded={excluded}
+        isSpinning={isSelecting}
+        onSetExcluded={onSetExcludedGames}
+        onSpin={() => handleSelect('random')}
+        onBack={() => setSetupWheel(false)}
+      />
+    );
+  }
+
+  if (!gameId) {
+    return (
+      <GameSelect
+        games={ICE_BREAKER_GAMES}
+        participants={participants}
+        isAdmin={isAdmin}
+        isSelecting={isSelecting}
+        onSelect={handleSelect}
+        excluded={excluded}
+      />
+    );
+  }
+
+  if (gameId === 'questions') {
+    return (<>
+      <QuestionsGame
+        session={session}
+        participants={participants}
+        isAdmin={isAdmin}
+        isGenerating={isGenerating}
+        onGenerate={onGenerate}
+        onNext={onNext}
+        onStartRetro={onStartRetro}
+        onChangeGame={requestChangeGame}
+        onSkip={onSkip}
+      />
+      {confirmDialog}
+    </>
+    );
+  }
+
+  if (gameId === 'emoji') {
+    return (<>
+      <EmojiCharadesGame
+        session={session}
+        currentUser={currentUser}
+        participants={participants}
+        isAdmin={isAdmin}
+        isStarting={isStarting}
+        onStart={onStart}
+        onSubmit={onSubmit}
+        onAdvance={onAdvance}
+        onStartRetro={onStartRetro}
+        onChangeGame={requestChangeGame}
+        onSkip={onSkip}
+      />
+      {confirmDialog}
+    </>
+    );
+  }
+
+  if (gameId === 'justone') {
+    return (<>
+      <JustOneGame
+        session={session}
+        currentUser={currentUser}
+        participants={participants}
+        isAdmin={isAdmin}
+        isStarting={isStarting}
+        onStart={onStart}
+        onSubmit={onSubmit}
+        onAdvance={onAdvance}
+        onStartRetro={onStartRetro}
+        onChangeGame={requestChangeGame}
+        onSkip={onSkip}
+      />
+      {confirmDialog}
+    </>
+    );
+  }
+
+  if (gameId === 'wyr') {
+    return (<>
+      <WouldYouRatherGame
+        session={session}
+        currentUser={currentUser}
+        participants={participants}
+        isAdmin={isAdmin}
+        isStarting={isStarting}
+        onStart={onStart}
+        onSubmit={onSubmit}
+        onAdvance={onAdvance}
+        onStartRetro={onStartRetro}
+        onChangeGame={requestChangeGame}
+        onSkip={onSkip}
+      />
+      {confirmDialog}
+    </>
+    );
+  }
+
+  if (gameId === 'fakedef') {
+    return (<>
+      <FakeDefinitionGame
+        session={session}
+        currentUser={currentUser}
+        participants={participants}
+        isAdmin={isAdmin}
+        isStarting={isStarting}
+        onStart={onStart}
+        onSubmit={onSubmit}
+        onAdvance={onAdvance}
+        onStartRetro={onStartRetro}
+        onChangeGame={requestChangeGame}
+        onSkip={onSkip}
+      />
+      {confirmDialog}
+    </>
+    );
+  }
+
+  // A game the server knows but this client cannot render yet.
+  const meta = getGameMeta(gameId);
   return (
-    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8">
-      {/* Progress dots */}
-      <div className="flex items-center gap-2">
-        {questions.map((_, i) => (
-          <div
-            key={i}
-            className={`rounded-full transition-all duration-300 ${
-              i < currentIndex
-                ? 'w-2.5 h-2.5 bg-primary/40'
-                : i === currentIndex
-                ? 'w-4 h-4 bg-primary shadow-lg shadow-primary/40'
-                : 'w-2.5 h-2.5 bg-border'
-            }`}
-          />
-        ))}
-        <span className="text-sm text-text-muted font-medium ml-2">
-          {currentIndex + 1} / {questions.length}
-        </span>
-      </div>
-
-      <div className="flex flex-col items-center gap-5 w-full max-w-xl">
-        {/* Name roulette card */}
-        <div className={`
-          w-full rounded-3xl p-10 text-center border-2 transition-all duration-500
-          ${isSpinning
-            ? 'border-primary/20 bg-primary/5 shadow-none'
-            : revealed
-            ? 'border-primary bg-surface shadow-2xl shadow-primary/15'
-            : 'border-border bg-surface'
-          }
-        `}>
-          <p className="text-xs font-black text-text-muted uppercase tracking-[0.2em] mb-4">
-            {isSpinning ? '🎰  Picking someone...' : isDone && !isSpinning ? '🏁  Last one!' : '🎯  It\'s your turn!'}
-          </p>
-
-          <div
-            className={`text-5xl font-black transition-all duration-300 ${
-              isSpinning
-                ? 'text-text/40 blur-sm scale-95'
-                : revealed
-                ? 'text-primary scale-110'
-                : 'text-text scale-100'
-            }`}
-            style={{ transition: isSpinning ? 'none' : 'all 0.35s cubic-bezier(0.34, 1.56, 0.64, 1)' }}
-          >
-            {displayedName || '...'}
-          </div>
-        </div>
-
-        {/* Question card */}
-        {showQuestion && currentQuestion && (
-          <div className="w-full bg-surface border border-border rounded-2xl p-6 text-center animate-in fade-in slide-in-from-bottom-3 duration-400">
-            <p className="text-xs font-black text-primary uppercase tracking-[0.15em] mb-3">Question</p>
-            <p className="text-xl font-bold text-text leading-snug">{currentQuestion.question}</p>
-          </div>
-        )}
-      </div>
-
-      {/* Controls */}
-      {isAdmin && !isSpinning && showQuestion && (
-        <div className="animate-in fade-in duration-300">
-          {isDone ? (
-            <button
-              onClick={onStartRetro}
-              className="flex items-center gap-2 px-8 py-4 bg-primary text-white font-bold rounded-2xl hover:bg-primary-hover transition-all text-lg shadow-lg shadow-primary/20 active:scale-[0.98]"
-            >
-              <Trophy className="w-5 h-5" />
-              Start Retro
-            </button>
-          ) : (
-            <button
-              onClick={onNext}
-              className="flex items-center gap-2 px-8 py-4 bg-surface border-2 border-primary text-primary font-bold rounded-2xl hover:bg-primary hover:text-white transition-all text-lg active:scale-[0.98]"
-            >
-              Next Person
-              <ChevronRight className="w-5 h-5" />
-            </button>
-          )}
-        </div>
-      )}
-
-      {!isAdmin && isDone && (
-        <p className="text-text-muted italic text-sm">
-          Ice breaker complete! Waiting for the admin to start the retro...
-        </p>
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6 text-center">
+      <div className="text-6xl">{meta?.emoji ?? '🎮'}</div>
+      <h2 className="text-3xl font-black text-text">{meta?.name ?? 'Unknown game'}</h2>
+      <p className="text-text-muted">This game is not available in your version of the app yet.</p>
+      {isAdmin && (
+        <button
+          onClick={onChangeGame}
+          className="flex items-center gap-2 px-6 py-3 rounded-2xl border-2 border-primary text-primary font-bold hover:bg-primary hover:text-white transition-all"
+        >
+          <Shuffle className="w-4 h-4" /> Pick another game
+        </button>
       )}
     </div>
   );

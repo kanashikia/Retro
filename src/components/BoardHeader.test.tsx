@@ -123,4 +123,5 @@ describe('BoardHeader component', () => {
 
         expect(exportSessionToPdf).toHaveBeenCalledWith(mockSession, mockParticipants);
     });
+
 });

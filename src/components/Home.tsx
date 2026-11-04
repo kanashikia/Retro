@@ -2,13 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate, Link } from 'react-router-dom';
 import { LayoutDashboard, Plus, History, LogOut, CheckCircle2, Snowflake, X } from 'lucide-react';
+import NewBadge from './icebreaker/NewBadge';
 
 const Home: React.FC = () => {
     const navigate = useNavigate();
     const [admin, setAdmin] = useState<any>(null);
     const [history, setHistory] = useState<any[]>([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
-    const [withIceBreaker, setWithIceBreaker] = useState(false);
+    const [withIceBreaker, setWithIceBreaker] = useState(true);
     const [sessionName, setSessionName] = useState('');
     const [nameError, setNameError] = useState('');
 
@@ -139,7 +140,7 @@ const Home: React.FC = () => {
                 <div className="grid md:grid-cols-2 gap-8">
                     {/* Create Session Card */}
                     <button
-                        onClick={() => { setWithIceBreaker(false); setSessionName(''); setNameError(''); setShowCreateModal(true); }}
+                        onClick={() => { setWithIceBreaker(true); setSessionName(''); setNameError(''); setShowCreateModal(true); }}
                         className="group relative bg-primary p-8 rounded-[32px] overflow-hidden transition-all hover:shadow-2xl hover:shadow-primary/30 active:scale-[0.98] text-left shrink-0"
                     >
                         <div className="absolute top-[-10%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
@@ -256,10 +257,11 @@ const Home: React.FC = () => {
 
                             <button
                                 onClick={() => setWithIceBreaker(v => !v)}
-                                className={`w-full flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-all ${
+                                className={`relative w-full flex items-start gap-4 p-5 rounded-2xl border-2 text-left transition-all ${
                                     withIceBreaker ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/40'
                                 }`}
                             >
+                                <NewBadge sub="games" muted={!withIceBreaker} position="corner-left" color="#ef4444" />
                                 <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 transition-colors ${withIceBreaker ? 'bg-primary text-white' : 'bg-secondary text-text-muted'}`}>
                                     <Snowflake className="w-5 h-5" />
                                 </div>
@@ -271,7 +273,7 @@ const Home: React.FC = () => {
                                         </div>
                                     </div>
                                     <p className="text-sm text-text-muted mt-1 leading-relaxed">
-                                        Start with a fun round where each person answers a random question before the retro.
+                                        Warm up with a quick game before the retro. Pick one, or spin the wheel and let fate decide.
                                     </p>
                                 </div>
                             </button>

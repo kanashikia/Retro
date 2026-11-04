@@ -26,6 +26,59 @@ dotenv.config();
 // Connect to SQL Database
 await connectDB();
 import { startCleanupJob } from './services/cleanupService.js';
+import {
+    RANDOM_GAME,
+    isAvailableGame,
+    normalizeIceBreakerState,
+    buildSelectedGameState,
+    buildResetGameState,
+    shuffleSplit,
+    skipQuestion,
+    topUpPool,
+    wheelGames,
+    sanitizeExcludedGames,
+    setExcludedGames,
+    FALLBACK_QUESTIONS,
+} from './utils/iceBreaker.js';
+import {
+    CANNED_CHARADES,
+    EMOJI_ROUNDS,
+    EMOJI_MAX_GUESS_LENGTH,
+    sanitizeCharades,
+    startEmojiGame,
+    recordEmojiGuess,
+    advanceEmojiGame,
+    skipEmojiCharade,
+    normalizeAnswer,
+} from './utils/emojiCharades.js';
+import {
+    CANNED_WORDS,
+    JUSTONE_MAX_ROUNDS,
+    sanitizeWords,
+    startJustOneGame,
+    recordJustOneSubmission,
+    advanceJustOneGame,
+    skipJustOneWord,
+} from './utils/justOne.js';
+import {
+    CANNED_DILEMMAS,
+    WYR_ROUNDS,
+    sanitizeDilemmas,
+    startWyrGame,
+    recordWyrVote,
+    advanceWyrGame,
+    skipWyrDilemma,
+} from './utils/wouldYouRather.js';
+import {
+    CANNED_FAKEDEFS,
+    FAKEDEF_ROUNDS,
+    FAKEDEF_MAX_DEF_LENGTH,
+    sanitizeFakeDefs,
+    startFakeDefGame,
+    recordFakeDefSubmission,
+    advanceFakeDefGame,
+    skipFakeDefWord,
+} from './utils/fakeDefinition.js';
 startCleanupJob();
 
 const __filename = fileURLToPath(import.meta.url);
@@ -1345,6 +1398,332 @@ ${JSON.stringify(promptItems)}
         }
     });
 
+    // --- ICE BREAKER ---
+
+    // Admin picks a game, or 'random' (server draws, clients animate the wheel).
+    socket.on('icebreaker:select-game', async ({ sessionId, game }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+            const requested = cap(game, 32);
+            if (requested !== RANDOM_GAME && !isAvailableGame(requested)) {
+                return cb(callback, { error: 'Unknown game' });
+            }
+
+            let emptyWheel = false;
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'ICE_BREAKER') return null;
+                if (requested === RANDOM_GAME && wheelGames(normalizeIceBreakerState(data.iceBreakerState).excludedGames).length === 0) {
+                    emptyWheel = true;
+                    return null;
+                }
+                const iceBreakerState = buildSelectedGameState(data.iceBreakerState, requested, { spinId: randomUUID() });
+                if (!iceBreakerState) return null;
+                return { ...data, iceBreakerState };
+            });
+            if (emptyWheel) return cb(callback, { error: 'Keep at least one game in the wheel.' });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[icebreaker:select-game]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // Admin switches games in or out of the random wheel.
+    socket.on('icebreaker:set-excluded', async ({ sessionId, excluded }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+            const list = sanitizeExcludedGames(Array.isArray(excluded) ? excluded.slice(0, 20) : []);
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'ICE_BREAKER') return null;
+                return { ...data, iceBreakerState: setExcludedGames(data.iceBreakerState, list) };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[icebreaker:set-excluded]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // Admin goes back to the game selection screen, dropping current progress.
+    socket.on('icebreaker:reset-game', async ({ sessionId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'ICE_BREAKER') return null;
+                return { ...data, iceBreakerState: buildResetGameState(data.iceBreakerState) };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[icebreaker:reset-game]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // Asks Gemini for the items of an ice breaker game. Any failure, or too few usable
+    // items, falls back to the game's canned list so the ice breaker never blocks.
+    const generateIceBreakerList = async (sessionId, { label, key, prompt, temperature, itemSchema, sanitize, canned }) => {
+        // Chaining two games within the cooldown is normal play: use the canned list rather than block
+        if (!ai || checkAiCooldown('icebreaker', sessionId) > 0) return { items: canned, source: 'fallback' };
+
+        for (const model of aiGroupingModels) {
+            try {
+                const result = await ai.models.generateContent({
+                    model,
+                    contents: [{ parts: [{ text: prompt }] }],
+                    config: {
+                        temperature,
+                        ...structuredOutputConfig(model, {
+                            type: Type.OBJECT,
+                            properties: { [key]: { type: Type.ARRAY, items: itemSchema } },
+                            required: [key]
+                        })
+                    }
+                });
+                const rawText = result?.text ?? result?.response?.text?.();
+                const cleanText = String(rawText ?? '').trim()
+                    .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+                const items = sanitize(JSON.parse(cleanText)?.[key]);
+                if (items.length >= 3) return { items, source: model };
+                console.warn(`[${label}] Model ${model} returned ${items.length} usable ${key}.`);
+            } catch (err) {
+                const msg = String(err?.message || '');
+                console.warn(`[${label}] Model ${model} failed: ${msg}`);
+                if (!isRetryableAiModelError(msg)) break;
+            }
+        }
+        return { items: canned, source: 'fallback' };
+    };
+
+    const EMOJI_CHARADES_AI = {
+        label: 'EmojiCharades',
+        key: 'charades',
+        temperature: 1.0,
+        prompt: `Génère 14 charades en emojis sur des films et séries très connus du grand public en France.
+Pour chaque charade :
+- "emojis" : exactement 3 emojis, sans aucun texte, qui évoquent l'histoire ou le titre.
+- "answer" : le titre tel qu'il est connu en France.
+- "accepted" : 1 à 4 autres façons de l'écrire (titre original anglais, forme courte).
+Varie les époques et les genres, mélange films et séries. Évite les titres obscurs.
+Réponds avec un objet JSON { "charades": [ { "emojis": "...", "answer": "...", "accepted": ["..."] } ] }.`,
+        itemSchema: {
+            type: Type.OBJECT,
+            properties: {
+                emojis: { type: Type.STRING },
+                answer: { type: Type.STRING },
+                accepted: { type: Type.ARRAY, items: { type: Type.STRING } }
+            },
+            required: ['emojis', 'answer', 'accepted']
+        },
+        sanitize: sanitizeCharades,
+        canned: CANNED_CHARADES,
+    };
+
+    const JUST_ONE_AI = {
+        label: 'JustOne',
+        key: 'words',
+        temperature: 1.0,
+        prompt: `Génère 24 mots pour le jeu Just One, en français.
+Chaque mot est un nom commun ou un nom propre très connu, concret, facile à faire deviner avec des indices d'un seul mot.
+Un seul mot par entrée (une expression courte très connue comme "Tour Eiffel" est acceptée). Pas d'adjectif, pas de verbe.
+Mélange les thèmes : objets, animaux, lieux, personnages, métiers, aliments, loisirs.
+Réponds avec un objet JSON { "words": ["..."] }.`,
+        itemSchema: { type: Type.STRING },
+        sanitize: sanitizeWords,
+        canned: CANNED_WORDS,
+    };
+
+    // Office-safe by prompt here, and by the word filter in sanitizeDilemmas.
+    const WOULD_YOU_RATHER_AI = {
+        label: 'WouldYouRather',
+        key: 'dilemmas',
+        temperature: 1.0,
+        prompt: `Génère 16 dilemmes « Tu préfères… » en français, parmi les meilleurs et les plus connus, pour une équipe qui travaille ensemble.
+Ton : drôle, absurde, léger, le genre qui lance un débat de 2 minutes.
+Interdits absolus : scatologie, vomi, sexe, nudité, obscénité, violence, gore, mort, maladie, handicap, drogue, alcool, politique, religion, apparence physique, argent personnel.
+Chaque dilemme : deux options équilibrées (vraiment difficile de choisir), 12 mots maximum par option, pas de « ou » dans une option, pas de point final.
+Mélange : superpouvoirs, nourriture, voyages, vie quotidienne, boulot, technologie, situations absurdes.
+Réponds avec un objet JSON { "dilemmas": [ { "a": "...", "b": "..." } ] }.`,
+        itemSchema: {
+            type: Type.OBJECT,
+            properties: { a: { type: Type.STRING }, b: { type: Type.STRING } },
+            required: ['a', 'b']
+        },
+        sanitize: sanitizeDilemmas,
+        canned: CANNED_DILEMMAS,
+    };
+
+    const FAKE_DEFINITION_AI = {
+        label: 'FakeDefinition',
+        key: 'entries',
+        temperature: 0.8,
+        prompt: `Génère 12 mots rares de la langue française, présents dans le dictionnaire mais inconnus de la plupart des gens, pour le jeu du dictionnaire.
+Pour chaque mot : "word" (le mot seul, en français) et "definition" (sa vraie définition, fidèle au dictionnaire, une phrase courte de 15 mots maximum, sans le mot lui-même).
+Évite les termes médicaux, vulgaires, religieux ou politiques. Les mots doivent être plausibles et amusants à inventer.
+Réponds avec un objet JSON { "entries": [ { "word": "...", "definition": "..." } ] }.`,
+        itemSchema: {
+            type: Type.OBJECT,
+            properties: { word: { type: Type.STRING }, definition: { type: Type.STRING } },
+            required: ['word', 'definition']
+        },
+        sanitize: sanitizeFakeDefs,
+        canned: CANNED_FAKEDEFS,
+    };
+
+    // Admin starts the selected game (Emoji Charades, Just One, Would You Rather,
+    // Fake Definition). The questions game keeps its historical `generate-ice-breaker` event.
+    socket.on('icebreaker:start', async ({ sessionId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+
+            const current = normalizeIceBreakerState(
+                (typeof auth.session.data === 'string' ? JSON.parse(auth.session.data) : auth.session.data)?.iceBreakerState
+            );
+            const participants = await getParticipants(auth.sessionId);
+            if (participants.length === 0) return cb(callback, { error: 'No participants in session yet.' });
+
+            let setup;
+            if (current.game === 'emoji') {
+                const generated = await generateIceBreakerList(auth.sessionId, EMOJI_CHARADES_AI);
+                const charades = topUpPool(generated.items, CANNED_CHARADES, EMOJI_ROUNDS + 4, c => normalizeAnswer(c.answer));
+                const { picked, rest } = shuffleSplit(charades, EMOJI_ROUNDS);
+                console.log(`[EmojiCharades] ${picked.length} charades (+${rest.length} spare) for session ${auth.sessionId} (source: ${generated.source})`);
+                setup = (state) => startEmojiGame(state, picked, Date.now(), rest);
+            } else if (current.game === 'justone') {
+                if (participants.length < 2) return cb(callback, { error: 'Just One needs at least 2 players.' });
+                const generated = await generateIceBreakerList(auth.sessionId, JUST_ONE_AI);
+                const words = topUpPool(generated.items, CANNED_WORDS, JUSTONE_MAX_ROUNDS + 4, w => normalizeAnswer(w));
+                const { picked, rest } = shuffleSplit(words, JUSTONE_MAX_ROUNDS);
+                const ids = participants.map(p => String(p.id));
+                const names = Object.fromEntries(participants.map(p => [String(p.id), String(p.name ?? '').slice(0, 64)]));
+                console.log(`[JustOne] ${picked.length} words (+${rest.length} spare) for session ${auth.sessionId} (source: ${generated.source})`);
+                setup = (state) => startJustOneGame(state, picked, ids, names, Date.now(), rest);
+            } else if (current.game === 'wyr') {
+                const generated = await generateIceBreakerList(auth.sessionId, WOULD_YOU_RATHER_AI);
+                const dilemmas = topUpPool(generated.items, CANNED_DILEMMAS, WYR_ROUNDS + 4, d => `${normalizeAnswer(d.a)}|${normalizeAnswer(d.b)}`);
+                const { picked, rest } = shuffleSplit(dilemmas, WYR_ROUNDS);
+                console.log(`[WouldYouRather] ${picked.length} dilemmas (+${rest.length} spare) for session ${auth.sessionId} (source: ${generated.source})`);
+                setup = (state) => startWyrGame(state, picked, Date.now(), rest);
+            } else if (current.game === 'fakedef') {
+                if (participants.length < 2) return cb(callback, { error: 'Fake Definition needs at least 2 players.' });
+                const generated = await generateIceBreakerList(auth.sessionId, FAKE_DEFINITION_AI);
+                const entries = topUpPool(generated.items, CANNED_FAKEDEFS, FAKEDEF_ROUNDS + 4, e => normalizeAnswer(e.word));
+                const { picked, rest } = shuffleSplit(entries, FAKEDEF_ROUNDS);
+                console.log(`[FakeDefinition] ${picked.length} words (+${rest.length} spare) for session ${auth.sessionId} (source: ${generated.source})`);
+                setup = (state) => startFakeDefGame(state, picked, Date.now(), rest);
+            } else {
+                return cb(callback, { error: 'This game has no start action' });
+            }
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'ICE_BREAKER') return null;
+                const state = normalizeIceBreakerState(data.iceBreakerState);
+                if (state.game !== current.game) return null;
+                return { ...data, iceBreakerState: setup(state) };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[icebreaker:start]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // Any participant submits a guess for the current round.
+    socket.on('icebreaker:submit', async ({ sessionId, text }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            // Transport cap only: each game trims to its own limit (80 for a guess, 160 for a definition)
+            const guess = cap(text, Math.max(EMOJI_MAX_GUESS_LENGTH, FAKEDEF_MAX_DEF_LENGTH)).trim();
+            if (!guess) return cb(callback, { error: 'Empty guess' });
+
+            const participantIds = (await getParticipants(auth.sessionId)).map(p => String(p.id));
+            let outcome = null;
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'ICE_BREAKER') return null;
+                const state = normalizeIceBreakerState(data.iceBreakerState);
+                const input = {
+                    participantId: String(auth.actor.id),
+                    name: String(auth.actor.name ?? '').slice(0, 64),
+                    text: guess,
+                    now: Date.now(),
+                    participantIds,
+                };
+                if (state.game === 'emoji') outcome = recordEmojiGuess(state, input);
+                else if (state.game === 'justone') outcome = recordJustOneSubmission(state, input);
+                else if (state.game === 'wyr') outcome = recordWyrVote(state, input);
+                else if (state.game === 'fakedef') outcome = recordFakeDefSubmission(state, input);
+                else outcome = { error: 'This game takes no input' };
+                if (outcome.error) return null;
+                return { ...data, iceBreakerState: outcome.state };
+            });
+            if (outcome?.error) return cb(callback, { error: outcome.error });
+            if (res.error) return cb(callback, res);
+            cb(callback, { success: true, ...outcome.result });
+        } catch (e) {
+            console.error('[icebreaker:submit]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // Admin skips the current item (question, charade, word, dilemma): the next
+    // one from the reserve pool replaces it and the round restarts.
+    socket.on('icebreaker:skip', async ({ sessionId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+
+            let outcome = null;
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'ICE_BREAKER') return null;
+                const state = normalizeIceBreakerState(data.iceBreakerState);
+                const now = Date.now();
+                if (state.game === 'questions') outcome = skipQuestion(state);
+                else if (state.game === 'emoji') outcome = skipEmojiCharade(state, now);
+                else if (state.game === 'justone') outcome = skipJustOneWord(state, now);
+                else if (state.game === 'wyr') outcome = skipWyrDilemma(state, now);
+                else if (state.game === 'fakedef') outcome = skipFakeDefWord(state, now);
+                else outcome = { error: 'Nothing to skip' };
+                if (outcome.error) return null;
+                return { ...data, iceBreakerState: outcome.state };
+            });
+            if (outcome?.error) return cb(callback, { error: outcome.error });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[icebreaker:skip]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // Admin moves the game forward: reveal the round, start the next one, or end.
+    socket.on('icebreaker:advance', async ({ sessionId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'ICE_BREAKER') return null;
+                const state = normalizeIceBreakerState(data.iceBreakerState);
+                const next = state.game === 'emoji' ? advanceEmojiGame(state, Date.now())
+                    : state.game === 'justone' ? advanceJustOneGame(state, Date.now())
+                    : state.game === 'wyr' ? advanceWyrGame(state, Date.now())
+                    : state.game === 'fakedef' ? advanceFakeDefGame(state, Date.now())
+                    : null;
+                if (!next) return null;
+                return { ...data, iceBreakerState: next };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[icebreaker:advance]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
     socket.on('advance-ice-breaker', async ({ sessionId: rawSessionId }, callback) => {
         const actor = socketToUser.get(socket.id)?.user;
         if (!rawSessionId || !actor?.id) return typeof callback === 'function' && callback({ error: 'Missing data' });
@@ -1426,50 +1805,71 @@ Avoid common or overused questions. Be creative and surprising.
 Team members: ${names.map(name => `"${name.replace(/"/g, '')}"`).join(', ')}
 Return a JSON object with a "questions" array of exactly ${n} strings in French (one per team member, in the same order).`;
 
-            let questions = null;
-            for (const model of aiGroupingModels) {
-                try {
-                    const result = await ai.models.generateContent({
-                        model,
-                        contents: [{ parts: [{ text: prompt }] }],
-                        config: {
-                            temperature: 1.5,
-                            ...structuredOutputConfig(model, {
-                                type: Type.OBJECT,
-                                properties: {
-                                    questions: { type: Type.ARRAY, items: { type: Type.STRING } }
-                                },
-                                required: ['questions']
-                            })
-                        }
-                    });
-                    const rawText = result?.text ?? result?.response?.text?.();
-                    const cleanText = String(rawText ?? '').trim()
-                        .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
-                    const parsed = JSON.parse(cleanText);
-                    questions = Array.isArray(parsed?.questions) ? parsed.questions : null;
-                    if (questions) break;
-                } catch (err) {
-                    const msg = String(err?.message || '');
-                    if (isRetryableAiModelError(msg) && model !== aiGroupingModels[aiGroupingModels.length - 1]) continue;
-                    throw err;
+            const generateQuestionSet = async () => {
+                let questions = null;
+                for (const model of aiGroupingModels) {
+                    try {
+                        const result = await ai.models.generateContent({
+                            model,
+                            contents: [{ parts: [{ text: prompt }] }],
+                            config: {
+                                temperature: 1.5,
+                                ...structuredOutputConfig(model, {
+                                    type: Type.OBJECT,
+                                    properties: {
+                                        questions: { type: Type.ARRAY, items: { type: Type.STRING } }
+                                    },
+                                    required: ['questions']
+                                })
+                            }
+                        });
+                        const rawText = result?.text ?? result?.response?.text?.();
+                        const cleanText = String(rawText ?? '').trim()
+                            .replace(/^```json\s*/i, '').replace(/^```\s*/i, '').replace(/\s*```$/i, '').trim();
+                        const parsed = JSON.parse(cleanText);
+                        questions = Array.isArray(parsed?.questions) ? parsed.questions : null;
+                        if (questions) break;
+                    } catch (err) {
+                        const msg = String(err?.message || '');
+                        if (isRetryableAiModelError(msg) && model !== aiGroupingModels[aiGroupingModels.length - 1]) continue;
+                        throw err;
+                    }
                 }
-            }
+                return questions;
+            };
 
+            const questions = await generateQuestionSet();
             if (!questions || questions.length === 0) {
                 return typeof callback === 'function' && callback({ error: 'AI returned no questions.' });
             }
+            // A second batch gives the admin one skip per person. If Gemini cannot
+            // provide it, a generic fallback question fills the gap.
+            let spares = null;
+            try {
+                spares = await generateQuestionSet();
+            } catch (err) {
+                console.warn('[IceBreaker] No spare questions from AI:', err?.message || err);
+            }
+            const spareQuestions = participants.map((_, i) => {
+                const fromAi = typeof spares?.[i] === 'string' && spares[i].trim() && spares[i] !== questions[i] ? spares[i] : null;
+                return fromAi ?? FALLBACK_QUESTIONS[(i * 5) % FALLBACK_QUESTIONS.length];
+            });
 
+            const existingData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
             const iceBreakerState = {
+                ...normalizeIceBreakerState(existingData?.iceBreakerState),
+                game: 'questions',
+                step: 'play',
+                spin: undefined,
                 questions: participants.map((p, i) => ({
                     participantId: p.id,
                     participantName: p.name,
                     question: questions[i] || 'Quelle est une chose que tes collègues ne savent probablement pas sur toi ?'
                 })),
+                spareQuestions,
                 currentIndex: 0
             };
 
-            const existingData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
             const updatedData = { ...existingData, iceBreakerState };
             await Session.update({ data: updatedData }, { where: { sessionId } });
             emitSessionUpdateForRoom(sessionId, updatedData, session.status);

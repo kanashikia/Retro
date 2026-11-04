@@ -1,6 +1,7 @@
 import express from 'express';
 import Session from '../models/Session.js';
 import { protect } from '../middleware/auth.js';
+import { buildVisibleSessionForUser } from '../utils/sessionHelper.js';
 
 const router = express.Router();
 
@@ -97,8 +98,7 @@ router.get('/:sessionId', protect, async (req, res) => {
             ? JSON.parse(session.data)
             : session.data;
         res.json({
-            ...sessionData,
-            status: session.status,
+            ...buildVisibleSessionForUser(sessionData, { id: req.user.id, isAdmin: true }, session.status),
             createdAt: session.createdAt?.toISOString?.() || sessionData.createdAt
         });
     } catch (error) {

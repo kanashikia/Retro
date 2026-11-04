@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { useParams, useNavigate } from 'react-router-dom';
-import { RetroPhase, User, SessionState, ThemeGroup } from '../types';
+import { RetroPhase, User, SessionState, ThemeGroup, IceBreakerGameId } from '../types';
 import { groupTicketsWithAI } from '../services/geminiService';
 import { useTheme } from '../context/ThemeContext';
 import { socket } from '../services/socket';
+import { GamePick } from '../icebreaker/games';
 
 import BoardHeader from './BoardHeader';
 import PhaseStepper from './PhaseStepper';
@@ -28,6 +29,7 @@ const RetroBoard: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isRegenerating, setIsRegenerating] = useState(false);
     const [isGeneratingIceBreaker, setIsGeneratingIceBreaker] = useState(false);
+    const [isStartingIceBreaker, setIsStartingIceBreaker] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     const handleRegenerateGroups = async () => {
@@ -228,6 +230,63 @@ const RetroBoard: React.FC = () => {
         });
     };
 
+    const handleSelectIceBreakerGame = (game: GamePick) => {
+        if (!session || !isAdmin) return;
+        setError(null);
+        socket.emit('icebreaker:select-game', { sessionId: session.id, game }, (response: any) => {
+            if (response?.error) setError(response.error);
+        });
+    };
+
+    const handleChangeIceBreakerGame = () => {
+        if (!session || !isAdmin) return;
+        setError(null);
+        socket.emit('icebreaker:reset-game', { sessionId: session.id }, (response: any) => {
+            if (response?.error) setError(response.error);
+        });
+    };
+
+    const handleStartIceBreaker = () => {
+        if (!session || !isAdmin || isStartingIceBreaker) return;
+        setIsStartingIceBreaker(true);
+        setError(null);
+        socket.emit('icebreaker:start', { sessionId: session.id }, (response: any) => {
+            setIsStartingIceBreaker(false);
+            if (response?.error) setError(response.error);
+        });
+    };
+
+    const handleIceBreakerSubmit = (text: string, onRejected: () => void) => {
+        if (!session) return;
+        socket.emit('icebreaker:submit', { sessionId: session.id, text }, (response: any) => {
+            if (!response?.error) return;
+            setError(response.error);
+            onRejected();
+        });
+    };
+
+    const handleIceBreakerAdvance = () => {
+        if (!session || !isAdmin) return;
+        socket.emit('icebreaker:advance', { sessionId: session.id }, (response: any) => {
+            if (response?.error) setError(response.error);
+        });
+    };
+
+    const handleSetExcludedGames = (excluded: IceBreakerGameId[]) => {
+        if (!session || !isAdmin) return;
+        socket.emit('icebreaker:set-excluded', { sessionId: session.id, excluded }, (response: any) => {
+            if (response?.error) setError(response.error);
+        });
+    };
+
+    const handleIceBreakerSkip = () => {
+        if (!session || !isAdmin) return;
+        setError(null);
+        socket.emit('icebreaker:skip', { sessionId: session.id }, (response: any) => {
+            if (response?.error) setError(response.error);
+        });
+    };
+
     const handleNextPhase = async () => {
         if (!session || !isAdmin) return;
         setError(null);
@@ -346,7 +405,7 @@ const RetroBoard: React.FC = () => {
             />
             <PhaseStepper session={session} currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />
             <main className="flex-1 p-6 lg:p-10 overflow-auto">
-                {session.phase === RetroPhase.ICE_BREAKER && <IceBreakerBoard session={session} currentUser={userWithVotes!} participants={participants} isAdmin={!!isAdmin} isGenerating={isGeneratingIceBreaker} onGenerate={handleGenerateIceBreaker} onNext={handleIceBreakerNext} onStartRetro={handleNextPhase} />}
+                {session.phase === RetroPhase.ICE_BREAKER && <IceBreakerBoard session={session} currentUser={userWithVotes!} participants={participants} isAdmin={!!isAdmin} isGenerating={isGeneratingIceBreaker} onGenerate={handleGenerateIceBreaker} onNext={handleIceBreakerNext} onStartRetro={handleNextPhase} onSelectGame={handleSelectIceBreakerGame} onChangeGame={handleChangeIceBreakerGame} isStarting={isStartingIceBreaker} onStart={handleStartIceBreaker} onSubmit={handleIceBreakerSubmit} onAdvance={handleIceBreakerAdvance} onSkip={handleIceBreakerSkip} onSetExcludedGames={handleSetExcludedGames} />}
                 {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={userWithVotes!} participants={participants} onToggleReady={handleToggleReady} />}
                 {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} currentUser={userWithVotes!} onToggleReaction={handleToggleReaction} onRegenerate={handleRegenerateGroups} isRegenerating={isRegenerating} />}
                 {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateUser={setCurrentUser} onToggleReaction={handleToggleReaction} />}
