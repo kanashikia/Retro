@@ -1,5 +1,6 @@
 
 import React from 'react';
+import { Link } from 'react-router-dom';
 import { LayoutDashboard, Users, Sparkles, ChevronRight, Copy, LogOut, AlertCircle, Palette, History, CheckCircle2, FileDown } from 'lucide-react';
 import { SessionState, User, RetroPhase } from '../types';
 import Timer from './Timer';
@@ -60,10 +61,10 @@ const BoardHeader: React.FC<Props> = ({ session, currentUser, participants, isLo
   return (
     <header className="bg-surface/80 backdrop-blur-md border-b border-border px-6 py-4 flex items-center justify-between sticky top-0 z-30 shadow-sm transition-colors duration-300">
       <div className="flex items-center gap-5">
-        <div className="flex items-center gap-3">
+        <Link to="/" className="flex items-center gap-3">
           <div className="w-10 h-10 bg-primary rounded-xl flex items-center justify-center shadow-inner transition-colors duration-300"><LayoutDashboard className="text-white w-5 h-5" /></div>
           <span className="font-black text-2xl text-text tracking-tight hidden sm:inline transition-colors duration-300">Retro</span>
-        </div>
+        </Link>
         <div className="h-8 w-px bg-border hidden xs:block transition-colors duration-300"></div>
 
         <div className="flex items-center gap-3 md:gap-6">

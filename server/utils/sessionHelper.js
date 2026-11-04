@@ -1,5 +1,10 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.js';
+import { getVisibleEmojiState } from './emojiCharades.js';
+import { getVisibleJustOneState } from './justOne.js';
+import { getVisibleWyrState } from './wouldYouRather.js';
+import { stripIceBreakerSecrets } from './iceBreaker.js';
+import { getVisibleFakeDefState } from './fakeDefinition.js';
 
 export const isBrainstormPhase = (sessionData) => sessionData?.phase === 'BRAINSTORM';
 
@@ -23,7 +28,10 @@ export const getVisibleTicketsForUser = (sessionData, user) => {
 export const buildVisibleSessionForUser = (sessionData, user, status) => ({
     ...sessionData,
     status: status || sessionData.status,
-    tickets: getVisibleTicketsForUser(sessionData, user)
+    tickets: getVisibleTicketsForUser(sessionData, user),
+    ...(sessionData?.iceBreakerState
+        ? { iceBreakerState: stripIceBreakerSecrets(getVisibleFakeDefState(getVisibleWyrState(getVisibleJustOneState(getVisibleEmojiState(sessionData.iceBreakerState, user?.id), user?.id), user?.id), user?.id)) }
+        : {})
 });
 
 export const sanitizeUser = (user) => {

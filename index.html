@@ -37,6 +37,63 @@
     .post-it-shadow {
       box-shadow: 2px 2px 5px rgba(0, 0, 0, 0.1);
     }
+
+    /* Ice breaker game animations */
+    @keyframes ib-pop {
+      0% { transform: scale(0.6); opacity: 0; }
+      60% { transform: scale(1.12); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes ib-fade-up {
+      from { transform: translateY(14px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+    @keyframes ib-float {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+    @keyframes ib-shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    @keyframes ib-pointer-tick {
+      0% { transform: translateX(-50%) rotate(0deg); }
+      40% { transform: translateX(-50%) rotate(-14deg); }
+      100% { transform: translateX(-50%) rotate(0deg); }
+    }
+    @keyframes ib-confetti-fall {
+      0% { transform: translate3d(0, -10vh, 0) rotate(0deg); opacity: 1; }
+      100% { transform: translate3d(var(--ib-drift, 0px), 110vh, 0) rotate(var(--ib-spin, 720deg)); opacity: 0.9; }
+    }
+    @keyframes ib-shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    @keyframes ib-wiggle {
+      0%, 100% { transform: rotate(0deg) scale(1); }
+      25% { transform: rotate(-12deg) scale(1.1); }
+      50% { transform: rotate(10deg) scale(1.12); }
+      75% { transform: rotate(-6deg) scale(1.08); }
+    }
+    .ib-wiggle-on-hover:hover .ib-wiggle-target,
+    .ib-wiggle-on-hover:focus-visible .ib-wiggle-target { animation: ib-wiggle 0.7s ease-in-out; }
+    @keyframes ib-fade-in {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    /* Opacity only: safe on SVG elements, whose transform origin is the canvas corner. */
+    .ib-fade-in { animation: ib-fade-in 0.6s ease-out both; }
+    .ib-pop { animation: ib-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+    .ib-fade-up { animation: ib-fade-up 0.4s ease-out both; }
+    .ib-float { animation: ib-float 2.4s ease-in-out infinite; }
+    .ib-shake { animation: ib-shake 0.4s ease-in-out; }
+    .ib-pointer-tick { animation: ib-pointer-tick 0.12s ease-out; }
+    .ib-shimmer {
+      background-image: linear-gradient(100deg, transparent 30%, rgba(255,255,255,0.35) 50%, transparent 70%);
+      background-size: 200% 100%;
+      animation: ib-shimmer 1.8s linear infinite;
+    }
   </style>
   <script type="importmap">
 {
