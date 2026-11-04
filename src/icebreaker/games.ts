@@ -59,6 +59,15 @@ export const ICE_BREAKER_GAMES: IceBreakerGameMeta[] = [
     available: true,
     isNew: true,
   },
+  {
+    id: 'airhockey',
+    name: 'Air Hockey',
+    emoji: '🏒',
+    tagline: 'Everyone at once, two teams, live. Ice, sea, then desert.',
+    color: '#06b6d4',
+    available: true,
+    isNew: true,
+  },
 ];
 
 export const RANDOM_GAME = 'random' as const;

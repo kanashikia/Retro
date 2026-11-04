@@ -1,11 +1,11 @@
 // Ice breaker game registry and state helpers.
 // Keep the game ids in sync with src/icebreaker/games.ts (client registry).
 
-export const ICE_BREAKER_GAMES = ['questions', 'emoji', 'justone', 'wyr', 'fakedef'];
+export const ICE_BREAKER_GAMES = ['questions', 'emoji', 'justone', 'wyr', 'fakedef', 'airhockey'];
 
 // Games playable today. The others are listed on the client as "coming soon"
 // and excluded from the random wheel until their handlers exist.
-export const AVAILABLE_ICE_BREAKER_GAMES = ['questions', 'emoji', 'justone', 'wyr', 'fakedef'];
+export const AVAILABLE_ICE_BREAKER_GAMES = ['questions', 'emoji', 'justone', 'wyr', 'fakedef', 'airhockey'];
 
 export const RANDOM_GAME = 'random';
 

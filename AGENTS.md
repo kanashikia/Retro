@@ -25,6 +25,7 @@ Before editing, identify which layer you are touching:
 - Preserve session visibility rules across phases.
 - Keep graceful fallbacks when AI fails.
 - Make small changes unless a larger refactor is explicitly required.
+- A new ice breaker game meets `docs/agents/icebreaker-games.md`: loaded on demand, ≤ 20 KB gzip, no assets or game library.
 - Verify behavior when changing socket payloads, auth flows, or session state.
 
 ## Commands
@@ -45,6 +46,7 @@ Open only the file relevant to the task:
 - `docs/agents/ai.md`: Gemini integration and fallback behavior
 - `docs/agents/testing.md`: validation expectations
 - `docs/agents/runbook.md`: env and local commands
+- `docs/agents/icebreaker-games.md`: size and performance rules a new ice breaker game must meet (read before proposing one)
 
 ## Delivery
 

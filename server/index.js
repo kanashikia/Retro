@@ -40,6 +40,7 @@ import {
     setExcludedGames,
     FALLBACK_QUESTIONS,
 } from './utils/iceBreaker.js';
+import { createAirHockeyHost, startAirHockeyGame } from './utils/airHockey.js';
 import {
     CANNED_CHARADES,
     EMOJI_ROUNDS,
@@ -547,6 +548,9 @@ const generateAiGroupingContent = async (prompt) => {
 
     throw lastError || new Error('No AI grouping model configured.');
 };
+
+// Live Air Hockey games, one per session (see utils/airHockey.js).
+const airHockey = createAirHockeyHost();
 
 io.on('connection', (socket) => {
     const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
@@ -1609,6 +1613,8 @@ Réponds avec un objet JSON { "entries": [ { "word": "...", "definition": "..." 
                 const { picked, rest } = shuffleSplit(dilemmas, WYR_ROUNDS);
                 console.log(`[WouldYouRather] ${picked.length} dilemmas (+${rest.length} spare) for session ${auth.sessionId} (source: ${generated.source})`);
                 setup = (state) => startWyrGame(state, picked, Date.now(), rest);
+            } else if (current.game === 'airhockey') {
+                setup = (state) => startAirHockeyGame(state);
             } else if (current.game === 'fakedef') {
                 if (participants.length < 2) return cb(callback, { error: 'Fake Definition needs at least 2 players.' });
                 const generated = await generateIceBreakerList(auth.sessionId, FAKE_DEFINITION_AI);
@@ -1723,6 +1729,30 @@ Réponds avec un objet JSON { "entries": [ { "word": "...", "definition": "..." 
             cb(callback, { error: e.message });
         }
     });
+
+    // Air Hockey: the live game of the session, once its admin started it. Frames go both ways on
+    // 'airhockey:frame' (JSON text or binary); snapshots are volatile, the next one replaces a lost one.
+    socket.on('airhockey:join', async ({ sessionId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            const data = typeof auth.session.data === 'string' ? JSON.parse(auth.session.data) : auth.session.data;
+            const state = normalizeIceBreakerState(data?.iceBreakerState);
+            if (data?.phase !== 'ICE_BREAKER' || state.game !== 'airhockey' || state.step !== 'play') {
+                return cb(callback, { error: 'No air hockey game running' });
+            }
+            const name = String(auth.actor.name ?? 'Player').slice(0, 16);
+            airHockey.join(socket.id, auth.sessionId, name, (frame) =>
+                typeof frame === 'string' ? socket.emit('airhockey:frame', frame) : socket.volatile.emit('airhockey:frame', frame));
+            cb(callback, { success: true });
+        } catch (e) {
+            console.error('[airhockey:join]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('airhockey:frame', (data) => airHockey.receive(socket.id, data));
+    socket.on('airhockey:leave', () => airHockey.leave(socket.id));
 
     socket.on('advance-ice-breaker', async ({ sessionId: rawSessionId }, callback) => {
         const actor = socketToUser.get(socket.id)?.user;
@@ -1899,6 +1929,7 @@ Return a JSON object with a "questions" array of exactly ${n} strings in French 
     });
 
     socket.on('disconnect', async () => {
+        airHockey.leave(socket.id);
         const userData = socketToUser.get(socket.id);
         if (userData) {
             const { sessionId } = userData;

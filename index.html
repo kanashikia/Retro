@@ -86,6 +86,13 @@
     .ib-fade-in { animation: ib-fade-in 0.6s ease-out both; }
     .ib-pop { animation: ib-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
     .ib-fade-up { animation: ib-fade-up 0.4s ease-out both; }
+    /* Air Hockey: as wide as the screen height allows the game (4:3 with its score bands). A phone
+       on its side gets the game's wide frame (2430 × 1125, rink full height), under the sticky
+       board header (79 px). */
+    .ah-rink { width: min(100%, calc((100dvh - 260px) * 4 / 3)); }
+    @media (orientation: landscape) and (max-height: 500px) {
+      .ah-rink { width: min(100%, calc((100dvh - 96px) * 2430 / 1125)); }
+    }
     .ib-float { animation: ib-float 2.4s ease-in-out infinite; }
     .ib-shake { animation: ib-shake 0.4s ease-in-out; }
     .ib-pointer-tick { animation: ib-pointer-tick 0.12s ease-out; }
