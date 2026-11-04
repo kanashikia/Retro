@@ -9,6 +9,8 @@ const Home: React.FC = () => {
     const [history, setHistory] = useState<any[]>([]);
     const [showCreateModal, setShowCreateModal] = useState(false);
     const [withIceBreaker, setWithIceBreaker] = useState(false);
+    const [sessionName, setSessionName] = useState('');
+    const [nameError, setNameError] = useState('');
 
     useEffect(() => {
         const storedAdmin = localStorage.getItem('retro_admin');
@@ -61,6 +63,10 @@ const Home: React.FC = () => {
     // const votesRemaining = Math.max(0, 5 - votesUsed);
 
     const handleCreateSession = async () => {
+        if (!sessionName.trim()) {
+            setNameError('Session name is required');
+            return;
+        }
         const newId = uuidv4();
         const token = localStorage.getItem('retro_token');
         if (!token) {
@@ -74,10 +80,11 @@ const Home: React.FC = () => {
                     'Content-Type': 'application/json',
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({ sessionId: newId, hasIceBreaker: withIceBreaker }),
+                body: JSON.stringify({ sessionId: newId, hasIceBreaker: withIceBreaker, name: sessionName.trim() }),
             });
             if (response.ok) {
                 setShowCreateModal(false);
+                setSessionName('');
                 navigate(`/retro/${newId}`);
             } else {
                 const contentType = response.headers.get("content-type");
@@ -132,7 +139,7 @@ const Home: React.FC = () => {
                 <div className="grid md:grid-cols-2 gap-8">
                     {/* Create Session Card */}
                     <button
-                        onClick={() => { setWithIceBreaker(false); setShowCreateModal(true); }}
+                        onClick={() => { setWithIceBreaker(false); setSessionName(''); setNameError(''); setShowCreateModal(true); }}
                         className="group relative bg-primary p-8 rounded-[32px] overflow-hidden transition-all hover:shadow-2xl hover:shadow-primary/30 active:scale-[0.98] text-left shrink-0"
                     >
                         <div className="absolute top-[-10%] right-[-10%] w-40 h-40 bg-white/10 rounded-full blur-3xl group-hover:scale-150 transition-transform duration-700"></div>
@@ -160,7 +167,12 @@ const Home: React.FC = () => {
                                 {history.length > 0 ? (
                                     history.map((session, index) => {
                                         const sessionId = session?.sessionId || session?.id;
-                                        const label = typeof sessionId === 'string' ? sessionId.split('-')[0] : `#${index + 1}`;
+                                        let sessionData: any = null;
+                                        try {
+                                            sessionData = typeof session?.data === 'string' ? JSON.parse(session.data) : session?.data;
+                                        } catch (e) { /* malformed data blob, fall back to id-based label */ }
+                                        const label = sessionData?.name
+                                            || (typeof sessionId === 'string' ? sessionId.split('-')[0] : `#${index + 1}`);
                                         const updatedAt = session?.updatedAt ? new Date(session.updatedAt) : null;
 
                                         return (
@@ -180,7 +192,6 @@ const Home: React.FC = () => {
                                                         </p>
                                                         {(() => {
                                                             try {
-                                                                const sessionData = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
                                                                 const actionCount = sessionData?.actions?.length || 0;
                                                                 if (actionCount > 0) {
                                                                     return (
@@ -221,6 +232,26 @@ const Home: React.FC = () => {
                                 <button onClick={() => setShowCreateModal(false)} className="p-2 text-text-muted hover:text-text rounded-xl hover:bg-secondary transition-colors">
                                     <X className="w-5 h-5" />
                                 </button>
+                            </div>
+
+                            <div className="space-y-2">
+                                <label htmlFor="session-name" className="text-sm font-bold text-text">
+                                    Session name
+                                </label>
+                                <input
+                                    id="session-name"
+                                    type="text"
+                                    value={sessionName}
+                                    onChange={(e) => { setSessionName(e.target.value.slice(0, 100)); setNameError(''); }}
+                                    placeholder="e.g. Sprint 42 Retro"
+                                    required
+                                    className={`w-full px-4 py-3 rounded-2xl border bg-background text-text placeholder:text-text-muted focus:outline-none focus:border-primary transition-colors ${
+                                        nameError ? 'border-red-400' : 'border-border'
+                                    }`}
+                                />
+                                {nameError && (
+                                    <p className="text-sm text-red-500 font-medium">{nameError}</p>
+                                )}
                             </div>
 
                             <button

@@ -1,4 +1,5 @@
 import { render, screen, fireEvent } from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi } from 'vitest';
 import BoardHeader from './BoardHeader';
 import { RetroPhase } from '../types';
@@ -60,9 +61,11 @@ describe('BoardHeader component', () => {
 
     const renderWithTheme = (ui) => {
         return render(
-            <ThemeProvider>
-                {ui}
-            </ThemeProvider>
+            <MemoryRouter>
+                <ThemeProvider>
+                    {ui}
+                </ThemeProvider>
+            </MemoryRouter>
         );
     };
 
@@ -81,7 +84,7 @@ describe('BoardHeader component', () => {
         expect(screen.getByText('Group with AI')).toBeDefined();
 
         // Rerender as normal user
-        rerender(<ThemeProvider><BoardHeader {...defaultProps} currentUser={mockUser} /></ThemeProvider>);
+        rerender(<MemoryRouter><ThemeProvider><BoardHeader {...defaultProps} currentUser={mockUser} /></ThemeProvider></MemoryRouter>);
         expect(screen.queryByText('Admin')).toBeNull();
         expect(screen.queryByText('Group with AI')).toBeNull();
     });

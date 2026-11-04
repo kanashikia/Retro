@@ -62,6 +62,7 @@ export interface Action {
 
 export interface SessionState {
   id: string;
+  name?: string | null;
   status?: string;
   phase: RetroPhase;
   tickets: Ticket[];

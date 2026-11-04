@@ -6,8 +6,10 @@ const router = express.Router();
 
 // Create a new session with pre-assigned admin
 router.post('/create', protect, async (req, res) => {
-    const { sessionId, hasIceBreaker } = req.body;
+    const { sessionId, hasIceBreaker, name } = req.body;
     if (!sessionId) return res.status(400).json({ message: 'Missing sessionId' });
+    const trimmedName = typeof name === 'string' ? name.trim().slice(0, 100) : '';
+    if (!trimmedName) return res.status(400).json({ message: 'Missing session name' });
     const adminId = req.user.id;
 
     try {
@@ -18,7 +20,8 @@ router.post('/create', protect, async (req, res) => {
             themes: [],
             currentThemeIndex: 0,
             adminId: adminId,
-            hasIceBreaker: !!hasIceBreaker
+            hasIceBreaker: !!hasIceBreaker,
+            name: trimmedName
         };
         const session = await Session.create({
             sessionId,
