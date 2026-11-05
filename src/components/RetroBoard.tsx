@@ -105,8 +105,11 @@ const RetroBoard: React.FC = () => {
     useEffect(() => {
         if (!currentUser || !sessionId) return;
         const token = localStorage.getItem('retro_token');
-        const participantToken = localStorage.getItem(PARTICIPANT_TOKEN_KEY);
-        socket.emit('join-session', { sessionId, user: currentUser, token, participantToken }, (response: any) => {
+        // Also after every reconnect: the server only knows a socket once it has joined, and a
+        // reconnected socket is a new one (a server restart, a network drop).
+        const join = () => socket.emit('join-session', {
+            sessionId, user: currentUser, token, participantToken: localStorage.getItem(PARTICIPANT_TOKEN_KEY)
+        }, (response: any) => {
             if (!response) return;
             if (response.error) {
                 setError(response.error);
@@ -129,6 +132,8 @@ const RetroBoard: React.FC = () => {
                 localStorage.removeItem(PARTICIPANT_TOKEN_KEY);
             }
         });
+        join();
+        socket.io.on('reconnect', join);
 
         // REST fallback: if Socket.IO fails (e.g. 503), load session data via HTTP
         let cancelled = false;
@@ -166,7 +171,10 @@ const RetroBoard: React.FC = () => {
         };
         fetchPreviousActions();
 
-        return () => { cancelled = true; };
+        return () => {
+            cancelled = true;
+            socket.io.off('reconnect', join);
+        };
     }, [currentUser?.id, sessionId, session?.adminId]);
 
     const initializePlaceholderSession = (id: string) => {
