@@ -13,7 +13,7 @@ export interface IceBreakerQuestion {
   question: string;
 }
 
-export type IceBreakerGameId = 'questions' | 'emoji' | 'justone' | 'wyr' | 'fakedef';
+export type IceBreakerGameId = 'questions' | 'emoji' | 'justone' | 'wyr' | 'fakedef' | 'airhockey';
 
 export type IceBreakerStep = 'select' | 'lobby' | 'collect' | 'play' | 'reveal' | 'done';
 

@@ -18,6 +18,7 @@ import EmojiCharadesGame from './icebreaker/EmojiCharadesGame';
 import JustOneGame from './icebreaker/JustOneGame';
 import WouldYouRatherGame from './icebreaker/WouldYouRatherGame';
 import FakeDefinitionGame from './icebreaker/FakeDefinitionGame';
+import AirHockeyGame from './icebreaker/AirHockeyGame';
 
 interface Props {
   session: SessionState;
@@ -250,6 +251,23 @@ const IceBreakerBoard: React.FC<Props> = ({
         onStartRetro={onStartRetro}
         onChangeGame={requestChangeGame}
         onSkip={onSkip}
+      />
+      {confirmDialog}
+    </>
+    );
+  }
+
+  if (gameId === 'airhockey') {
+    return (<>
+      <AirHockeyGame
+        session={session}
+        currentUser={currentUser}
+        participants={participants}
+        isAdmin={isAdmin}
+        isStarting={isStarting}
+        onStart={onStart}
+        onStartRetro={onStartRetro}
+        onChangeGame={requestChangeGame}
       />
       {confirmDialog}
     </>

@@ -72,7 +72,8 @@ describe('excluded games', () => {
         const state = setExcludedGames({}, ['emoji', 'bogus', 'wyr']);
         expect(state.excludedGames).toEqual(['emoji', 'wyr']);
         const picked = buildSelectedGameState(state, 'random', { rng: () => 0.99, now: 1 });
-        expect(['questions', 'justone', 'fakedef']).toContain(picked.game);
+        expect(['emoji', 'wyr']).not.toContain(picked.game);
+        expect(AVAILABLE_ICE_BREAKER_GAMES).toContain(picked.game);
         expect(picked.excludedGames).toEqual(['emoji', 'wyr']);
         expect(buildSelectedGameState(setExcludedGames({}, AVAILABLE_ICE_BREAKER_GAMES), 'random')).toBeNull();
     });
