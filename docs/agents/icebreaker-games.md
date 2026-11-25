@@ -24,6 +24,22 @@ for f in dist/assets/*.js; do echo "$f $(gzip -9 -c "$f" | wc -c)"; done
 
 Compare with the same command on `main`: the main chunk may grow by 2 KB at most, the new chunk must stay under 20 KB.
 
+## Full-page games (exception)
+
+A game that cannot fit the rules above (a 3D game in WebGL, with its own sound) may still come in as a **full-page game**, Tiny FPS ([tiny-fps](https://github.com/korial29/tiny-fps)) being the first. It is played in a tab of its own, never inside the retro.
+
+| Rule | Limit | Tiny FPS today |
+| --- | --- | --- |
+| Main bundle growth (registry entry, lobby, map picker) | ≤ 2 KB gzip | +0.7 KB |
+| The game's page | its own Vite entry (`fps.html`), no React | 1.2 KB + Socket.io client |
+| The game's chunk | loaded by its page only, with `import()` | 318 KB gzip |
+
+- **Its own page**: an entry of `build.rollupOptions.input`. The retro page must never reference the game's chunks.
+- **Opened from a click**, with `window.open(…, '_blank', 'noopener')`, or the browser blocks the tab.
+- **The game tab never joins the retro session** (`join-session`): its socket going would remove the player from the participants. The retro tab asks the server for a short-lived ticket (`tinyfps:ticket`), passed in the URL hash, and the game tab joins the game with it. The server re-checks the session's state at every join.
+- **Sound**: Opus at 12 kbps mono, loaded after the first click; switch the voices off when the game allows it (Tiny FPS: `voices: false`).
+- Everything else below applies: Socket.io and no second server, names from the session, one game per session in this process, inputs capped, snapshots volatile.
+
 ## Performance
 
 - **60 fps** on a laptop with 16 players. Paint what does not move once (offscreen canvas), animate only what does.

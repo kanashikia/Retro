@@ -13,7 +13,7 @@ export interface IceBreakerQuestion {
   question: string;
 }
 
-export type IceBreakerGameId = 'questions' | 'emoji' | 'justone' | 'wyr' | 'fakedef' | 'airhockey';
+export type IceBreakerGameId = 'questions' | 'emoji' | 'justone' | 'wyr' | 'fakedef' | 'airhockey' | 'tinyfps';
 
 export type IceBreakerStep = 'select' | 'lobby' | 'collect' | 'play' | 'reveal' | 'done';
 
@@ -74,6 +74,8 @@ export interface IceBreakerState {
   votes?: Record<string, Record<string, { index?: number; at: number }>>;
   guesses?: Record<string, { text: string; correct: boolean; at: number }>;
   teamScore?: number;
+  // "tinyfps" game: the map the admin picked (a key of FPS_MAPS)
+  fpsMap?: string;
   /** Start of the current step, for the client-side countdown. */
   roundStartedAt?: number;
   // generic game data, keyed by round then participant id

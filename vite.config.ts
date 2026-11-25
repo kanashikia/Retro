@@ -23,6 +23,10 @@ export default defineConfig(({ mode }) => {
       },
     },
     plugins: [react()],
+    build: {
+      // The Tiny FPS tab is a page of its own (fps.html): the game never weighs on the app.
+      rollupOptions: { input: { main: path.resolve(__dirname, 'index.html'), fps: path.resolve(__dirname, 'fps.html') } },
+    },
     define: {
     },
     resolve: {

@@ -41,6 +41,7 @@ import {
     FALLBACK_QUESTIONS,
 } from './utils/iceBreaker.js';
 import { createAirHockeyHost, startAirHockeyGame } from './utils/airHockey.js';
+import { createTinyFpsHost, isFpsMap, setFpsMap, signFpsTicket, startTinyFpsGame, verifyFpsTicket } from './utils/tinyFps.js';
 import {
     CANNED_CHARADES,
     EMOJI_ROUNDS,
@@ -551,6 +552,8 @@ const generateAiGroupingContent = async (prompt) => {
 
 // Live Air Hockey games, one per session (see utils/airHockey.js).
 const airHockey = createAirHockeyHost();
+// Live Tiny FPS games, one per session and map (see utils/tinyFps.js).
+const tinyFps = createTinyFpsHost();
 
 io.on('connection', (socket) => {
     const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
@@ -1615,6 +1618,8 @@ Réponds avec un objet JSON { "entries": [ { "word": "...", "definition": "..." 
                 setup = (state) => startWyrGame(state, picked, Date.now(), rest);
             } else if (current.game === 'airhockey') {
                 setup = (state) => startAirHockeyGame(state);
+            } else if (current.game === 'tinyfps') {
+                setup = (state) => startTinyFpsGame(state);
             } else if (current.game === 'fakedef') {
                 if (participants.length < 2) return cb(callback, { error: 'Fake Definition needs at least 2 players.' });
                 const generated = await generateIceBreakerList(auth.sessionId, FAKE_DEFINITION_AI);
@@ -1753,6 +1758,63 @@ Réponds avec un objet JSON { "entries": [ { "word": "...", "definition": "..." 
 
     socket.on('airhockey:frame', (data) => airHockey.receive(socket.id, data));
     socket.on('airhockey:leave', () => airHockey.leave(socket.id));
+
+    // Tiny FPS: the admin picks the map in the lobby, nobody else.
+    socket.on('tinyfps:map', async ({ sessionId, map }, callback) => {
+        try {
+            if (!isFpsMap(map)) return cb(callback, { error: 'Unknown map' });
+            const auth = await authorizeActor(socket.id, sessionId, { requireAdmin: true });
+            if (auth.error) return cb(callback, auth);
+            const res = await mutateSession(auth.sessionId, auth.session, (data) => {
+                if (data.phase !== 'ICE_BREAKER') return null;
+                const state = normalizeIceBreakerState(data.iceBreakerState);
+                if (state.game !== 'tinyfps' || state.step === 'play') return null;
+                return { ...data, iceBreakerState: setFpsMap(state, map) };
+            });
+            cb(callback, res);
+        } catch (e) {
+            console.error('[tinyfps:map]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // The retro tab asks for a ticket, under its session name, for the game tab it opens.
+    socket.on('tinyfps:ticket', async ({ sessionId }, callback) => {
+        try {
+            const auth = await authorizeActor(socket.id, sessionId);
+            if (auth.error) return cb(callback, auth);
+            cb(callback, { ticket: signFpsTicket({ sessionId: auth.sessionId, user: auth.actor }) });
+        } catch (e) {
+            console.error('[tinyfps:ticket]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    // The game tab: no 'join-session', its ticket stands for the player. It gets into the session's
+    // running game, on its map. Frames as Air Hockey's, on 'tinyfps:frame'.
+    socket.on('tinyfps:join', async ({ ticket }, callback) => {
+        try {
+            const t = verifyFpsTicket(ticket);
+            if (!t) return cb(callback, { error: 'Invalid ticket' });
+            const session = await Session.findOne({ where: { sessionId: t.sessionId } });
+            if (!session) return cb(callback, { error: 'Session not found' });
+            const data = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
+            const state = normalizeIceBreakerState(data?.iceBreakerState);
+            if (session.status === 'closed' || data?.phase !== 'ICE_BREAKER' || state.game !== 'tinyfps' || state.step !== 'play') {
+                return cb(callback, { error: 'No game running' });
+            }
+            const map = isFpsMap(state.fpsMap) ? state.fpsMap : 'highline';
+            tinyFps.join(socket.id, t.sessionId, map, t.name, (frame) =>
+                typeof frame === 'string' ? socket.emit('tinyfps:frame', frame) : socket.volatile.emit('tinyfps:frame', frame));
+            cb(callback, { name: t.name, map });
+        } catch (e) {
+            console.error('[tinyfps:join]', e);
+            cb(callback, { error: e.message });
+        }
+    });
+
+    socket.on('tinyfps:frame', (data) => tinyFps.receive(socket.id, data));
+    socket.on('tinyfps:leave', () => tinyFps.leave(socket.id));
 
     socket.on('advance-ice-breaker', async ({ sessionId: rawSessionId }, callback) => {
         const actor = socketToUser.get(socket.id)?.user;
@@ -1930,6 +1992,7 @@ Return a JSON object with a "questions" array of exactly ${n} strings in French 
 
     socket.on('disconnect', async () => {
         airHockey.leave(socket.id);
+        tinyFps.leave(socket.id);
         const userData = socketToUser.get(socket.id);
         if (userData) {
             const { sessionId } = userData;

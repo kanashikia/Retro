@@ -105,7 +105,9 @@ export const GameLobby: React.FC<{
   minPlayers?: number;
   onStart: () => void;
   onChangeGame: () => void;
-}> = ({ meta, description, participants, isAdmin, isStarting, startingLabel, minPlayers = 1, onStart, onChangeGame }) => {
+  /** The game's own settings, under its description (Tiny FPS: the map). */
+  children?: React.ReactNode;
+}> = ({ meta, description, participants, isAdmin, isStarting, startingLabel, minPlayers = 1, onStart, onChangeGame, children }) => {
   const enough = participants.length >= minPlayers;
   return (
     <div className="flex flex-col items-center justify-center min-h-[60vh] gap-8 text-center">
@@ -116,6 +118,8 @@ export const GameLobby: React.FC<{
         <h2 className="text-3xl font-black text-text">{meta.name}</h2>
         <p className="text-text-muted max-w-md mx-auto leading-relaxed">{description}</p>
       </div>
+
+      {children}
 
       <PlayersPanel participants={participants}>
         {minPlayers > 1 && !enough && <p className="text-xs text-text-muted italic">{meta.name} needs at least {minPlayers} players.</p>}
