@@ -19,6 +19,7 @@ import JustOneGame from './icebreaker/JustOneGame';
 import WouldYouRatherGame from './icebreaker/WouldYouRatherGame';
 import FakeDefinitionGame from './icebreaker/FakeDefinitionGame';
 import AirHockeyGame from './icebreaker/AirHockeyGame';
+import TinyFpsGame from './icebreaker/TinyFpsGame';
 
 interface Props {
   session: SessionState;
@@ -262,6 +263,22 @@ const IceBreakerBoard: React.FC<Props> = ({
       <AirHockeyGame
         session={session}
         currentUser={currentUser}
+        participants={participants}
+        isAdmin={isAdmin}
+        isStarting={isStarting}
+        onStart={onStart}
+        onStartRetro={onStartRetro}
+        onChangeGame={requestChangeGame}
+      />
+      {confirmDialog}
+    </>
+    );
+  }
+
+  if (gameId === 'tinyfps') {
+    return (<>
+      <TinyFpsGame
+        session={session}
         participants={participants}
         isAdmin={isAdmin}
         isStarting={isStarting}
