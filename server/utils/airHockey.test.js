@@ -43,6 +43,16 @@ describe('air hockey host', () => {
         expect(rooms[0].receive).toHaveBeenCalledWith(expect.anything(), JSON.stringify({ t: 'join', name: 'Ana' }));
     });
 
+    it('relays a ping with only its clock, drops one without a number', () => {
+        const { h, rooms } = host();
+        h.join('a', 's1', 'Ana', vi.fn());
+        h.receive('a', JSON.stringify({ t: 'ping', n: 1234.5, extra: 'x'.repeat(50) }));
+        h.receive('a', JSON.stringify({ t: 'ping', n: 'soon' }));
+        h.receive('a', JSON.stringify({ t: 'ping' }));
+        expect(rooms[0].receive).toHaveBeenCalledOnce();
+        expect(rooms[0].receive).toHaveBeenCalledWith(expect.anything(), JSON.stringify({ t: 'ping', n: 1234.5 }));
+    });
+
     it('passes inputs as their exact bytes, drops oversized and stray frames', () => {
         const { h, rooms } = host();
         h.receive('nobody', new ArrayBuffer(5));

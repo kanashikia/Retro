@@ -39,6 +39,8 @@ describe('AirHockeyGame', () => {
     expect(el).toBeInstanceOf(HTMLDivElement);
     expect(opts.name).toBe('Ana');
     expect(opts.socket.binaryType).toBe('arraybuffer');
+    // The rink fills the room the page gives it.
+    expect(opts.fill).toBe(true);
     expect(screen.getByText('Waiting for the admin to start the retro...')).toBeInTheDocument();
     unmount();
     expect(game.destroy).toHaveBeenCalledOnce();

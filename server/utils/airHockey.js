@@ -9,7 +9,7 @@ import { Room } from 'air-hockey/room';
 /** A short match: three rounds, one scene each (ice, sea, desert), first to 3 goals. */
 export const AIR_HOCKEY_RULES = { goals: 3, rounds: 3 };
 
-/** Inputs are 5 bytes and a join a few dozen: anything bigger is dropped. */
+/** Inputs are 5 bytes, a join or a ping a few dozen: anything bigger is dropped. */
 export const MAX_FRAME = 1024;
 
 /** The lobby's start: the game is on for everyone in the session. */
@@ -65,8 +65,10 @@ export const createAirHockeyHost = ({ rules = AIR_HOCKEY_RULES, makeRoom = (r) =
             if (data.length > MAX_FRAME) return;
             let msg;
             try { msg = JSON.parse(data); } catch { return; }
-            // The only text a client sends: its join, rewritten with the session's name for it.
+            // The only texts a client sends: its join, rewritten with the session's name for it, and
+            // a ping (its clock, answered with a pong) to measure the round trip, rewritten too.
             if (msg?.t === 'join') game.room.receive(peer.conn, JSON.stringify({ t: 'join', name: peer.name }));
+            else if (msg?.t === 'ping' && Number.isFinite(msg.n)) game.room.receive(peer.conn, JSON.stringify({ t: 'ping', n: msg.n }));
             return;
         }
         const bytes = toArrayBuffer(data);

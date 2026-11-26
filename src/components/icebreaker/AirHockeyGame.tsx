@@ -39,7 +39,7 @@ const Rink: React.FC<{ sessionId: string; name: string }> = ({ sessionId, name }
     import('air-hockey')
       .then(({ airHockey }) => {
         if (gone || !ref.current) return;
-        game = airHockey(ref.current, { name, socket: airHockeySocket(socket, sessionId) });
+        game = airHockey(ref.current, { name, socket: airHockeySocket(socket, sessionId), fill: true });
         setStatus('ready');
       })
       .catch(() => !gone && setStatus('failed'));
@@ -53,7 +53,7 @@ const Rink: React.FC<{ sessionId: string; name: string }> = ({ sessionId, name }
     <div className="ah-rink">
       {status === 'loading' && <p className="text-text-muted italic text-center py-16">Flooding the rink...</p>}
       {status === 'failed' && <p className="text-text-muted text-center py-16">The game did not load. Check your connection and reload the page.</p>}
-      <div ref={ref} />
+      <div ref={ref} className="h-full" />
     </div>
   );
 };
@@ -77,8 +77,8 @@ const AirHockeyGame: React.FC<Props> = ({
   }
 
   return (
-    <div className="flex flex-col items-center gap-6 w-full">
-      <GameHeader emoji={META.emoji} name={META.name} color={META.color} subtitle="Three rounds, first to 3 goals. Mouse or finger: your paddle follows." />
+    <div className="flex flex-col items-center gap-4 w-full">
+      <GameHeader emoji={META.emoji} name={META.name} color={META.color} subtitle="Three rounds, first to 3 goals. Mouse or finger: your paddle follows. 🔊 Sound on the first click." />
       <Rink sessionId={session.id} name={currentUser.name} />
       <EndOfGameActions isAdmin={isAdmin} onStartRetro={onStartRetro} onChangeGame={onChangeGame} />
     </div>
