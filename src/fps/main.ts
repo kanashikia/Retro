@@ -27,10 +27,21 @@ const ticket = readTicket();
 let game: { destroy(): void } | undefined;
 /** The character screen opens the first time only; after a reconnect the player is back at once. */
 let started = false;
+/** Sent off by the server: the game is over for this tab, no rejoining on reconnect. */
+let off = false;
+
+/** Why the server sent this tab off: the retro moved on, or the player joined from another tab. */
+const OVER: Record<string, string> = {
+  ended: 'The game is over. Go back to the retro.',
+  elsewhere: 'You joined the game from another tab. You can close this one.',
+};
 
 const mount = async () => {
+  if (off) return;
   try {
     const [{ name, map }, { tinyFps }] = await Promise.all([joinFps(socket, ticket!), import('@korial29/tiny-fps')]);
+    // Sent off while the game loaded.
+    if (off) return;
     game?.destroy();
     const g = tinyFps(el, { name, map, socket: fpsSocket(socket), cast: !started, voices: false });
     game = g;
@@ -58,6 +69,13 @@ if (!ticket) {
 } else {
   void mount();
   // The server drops a socket's player when it goes: back in on reconnect.
-  socket.on('disconnect', () => say('Connection lost, reconnecting...'));
+  socket.on('disconnect', () => off || say('Connection lost, reconnecting...'));
   socket.io.on('reconnect', () => void mount());
+  socket.on('tinyfps:over', ({ reason }: { reason?: string } = {}) => {
+    off = true;
+    game?.destroy();
+    game = undefined;
+    if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    say(OVER[reason ?? ''] ?? OVER.ended);
+  });
 }

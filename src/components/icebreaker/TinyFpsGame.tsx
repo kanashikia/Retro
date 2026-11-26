@@ -45,6 +45,10 @@ const MapPicker: React.FC<{ sessionId: string; picked: string; isAdmin: boolean;
   </div>
 );
 
+/** Tries for a ticket while the socket rejoins its session after a reconnect. */
+const TICKET_TRIES = 5;
+const TICKET_RETRY_MS = 500;
+
 /**
  * The game runs in a tab of its own, full screen. The ticket asked for here lets that tab into the
  * session's game under this player's name, without joining the retro session a second time.
@@ -55,17 +59,30 @@ const OpenGame: React.FC<{ sessionId: string }> = ({ sessionId }) => {
 
   useEffect(() => {
     let gone = false;
-    const ask = () =>
+    let retry: ReturnType<typeof setTimeout> | undefined;
+    // After a reconnect the socket is a new one: the server knows it once it has rejoined the
+    // session, which may still be on its way. Until then it answers 'Missing actor': try again.
+    const ask = (left = TICKET_TRIES) => {
+      clearTimeout(retry);
       socket.emit('tinyfps:ticket', { sessionId }, (res: { ticket?: string; error?: string } | undefined) => {
         if (gone) return;
-        if (res?.ticket) setTicket(res.ticket);
-        else setFailed(true);
+        if (res?.ticket) {
+          setTicket(res.ticket);
+          setFailed(false);
+        } else if (left > 1) {
+          retry = setTimeout(() => ask(left - 1), TICKET_RETRY_MS);
+        } else {
+          setFailed(true);
+        }
       });
+    };
+    const again = () => ask();
     ask();
-    socket.on('connect', ask);
+    socket.on('connect', again);
     return () => {
       gone = true;
-      socket.off('connect', ask);
+      clearTimeout(retry);
+      socket.off('connect', again);
     };
   }, [sessionId]);
 

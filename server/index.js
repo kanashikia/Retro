@@ -41,7 +41,7 @@ import {
     FALLBACK_QUESTIONS,
 } from './utils/iceBreaker.js';
 import { createAirHockeyHost, startAirHockeyGame } from './utils/airHockey.js';
-import { createTinyFpsHost, isFpsMap, setFpsMap, signFpsTicket, startTinyFpsGame, verifyFpsTicket } from './utils/tinyFps.js';
+import { createTinyFpsHost, isFpsMap, isFpsOn, setFpsMap, signFpsTicket, startTinyFpsGame, verifyFpsTicket } from './utils/tinyFps.js';
 import {
     CANNED_CHARADES,
     EMOJI_ROUNDS,
@@ -299,9 +299,15 @@ const getParticipants = async (sessionId) => {
 
 // Helper functions moved to server/utils/sessionHelper.js
 
+// Live Tiny FPS games, one per session and map (see utils/tinyFps.js). Before the session update
+// handlers below, which end a game when its session moves on.
+const tinyFps = createTinyFpsHost();
+
 // Local emit: iterate THIS node's sockets in the session and push a filtered view.
 // Optionally resets isReady for everyone in the session on this node.
 const localEmitSessionUpdate = ({ sessionId, sessionData, status, resetReady }) => {
+    // The retro moved on (or another game, or closed): the Tiny FPS tabs this node hosts go.
+    if (!isFpsOn(sessionData, status)) tinyFps.end(sessionId);
     if (resetReady) {
         for (const [sid, data] of socketToUser.entries()) {
             if (data.sessionId === sessionId) {
@@ -552,8 +558,6 @@ const generateAiGroupingContent = async (prompt) => {
 
 // Live Air Hockey games, one per session (see utils/airHockey.js).
 const airHockey = createAirHockeyHost();
-// Live Tiny FPS games, one per session and map (see utils/tinyFps.js).
-const tinyFps = createTinyFpsHost();
 
 io.on('connection', (socket) => {
     const ip = socket.handshake.headers['x-forwarded-for'] || socket.handshake.address;
@@ -683,6 +687,7 @@ io.on('connection', (socket) => {
             if (session && actor.isAdmin && String(session.adminId) === String(actor.id)) {
                 await Session.update({ status: 'closed' }, { where: { sessionId } });
                 io.to(sessionId).emit('session-closed');
+                tinyFps.end(sessionId);
                 console.log(`Session ${sessionId} closed by admin ${actor.id}`);
                 if (typeof callback === 'function') callback({ success: true });
             } else {
@@ -1800,12 +1805,15 @@ Réponds avec un objet JSON { "entries": [ { "word": "...", "definition": "..." 
             if (!session) return cb(callback, { error: 'Session not found' });
             const data = typeof session.data === 'string' ? JSON.parse(session.data) : session.data;
             const state = normalizeIceBreakerState(data?.iceBreakerState);
-            if (session.status === 'closed' || data?.phase !== 'ICE_BREAKER' || state.game !== 'tinyfps' || state.step !== 'play') {
+            if (!isFpsOn({ ...data, iceBreakerState: state }, session.status)) {
                 return cb(callback, { error: 'No game running' });
             }
             const map = isFpsMap(state.fpsMap) ? state.fpsMap : 'highline';
-            tinyFps.join(socket.id, t.sessionId, map, t.name, (frame) =>
-                typeof frame === 'string' ? socket.emit('tinyfps:frame', frame) : socket.volatile.emit('tinyfps:frame', frame));
+            tinyFps.join(
+                socket.id, t.sessionId, map, t.name,
+                (frame) => typeof frame === 'string' ? socket.emit('tinyfps:frame', frame) : socket.volatile.emit('tinyfps:frame', frame),
+                { userId: t.userId, over: (reason) => socket.emit('tinyfps:over', { reason }) },
+            );
             cb(callback, { name: t.name, map });
         } catch (e) {
             console.error('[tinyfps:join]', e);
