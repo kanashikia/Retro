@@ -1,4 +1,4 @@
-import { IceBreakerGameId, IceBreakerState } from '../types';
+import { IceBreakerGameId, IceBreakerState, RetroPhase, SessionState } from '../types';
 
 // Client game registry. Keep ids and availability in sync with
 // server/utils/iceBreaker.js — the server is the one that validates picks.
@@ -12,6 +12,8 @@ export interface IceBreakerGameMeta {
   available: boolean;
   /** Shows a "New" sticker on the pick card. */
   isNew?: boolean;
+  /** While it is played, the board header and phase stepper step aside: the game takes the page. */
+  fullHeight?: boolean;
 }
 
 export const ICE_BREAKER_GAMES: IceBreakerGameMeta[] = [
@@ -67,6 +69,7 @@ export const ICE_BREAKER_GAMES: IceBreakerGameMeta[] = [
     color: '#06b6d4',
     available: true,
     isNew: true,
+    fullHeight: true,
   },
   {
     id: 'tinyfps',
@@ -87,6 +90,12 @@ export const SPIN_REPLAY_WINDOW_MS = 8000;
 
 export const getGameMeta = (id: IceBreakerGameId | null | undefined): IceBreakerGameMeta | undefined =>
   ICE_BREAKER_GAMES.find(g => g.id === id);
+
+/** A full-height game is being played: the page is the game's, no board header nor stepper. */
+export const isFullHeightGame = (session: Pick<SessionState, 'phase' | 'iceBreakerState'>): boolean =>
+  session.phase === RetroPhase.ICE_BREAKER
+  && !!getGameMeta(session.iceBreakerState?.game)?.fullHeight
+  && session.iceBreakerState?.step === 'play';
 
 export const availableGames = (): IceBreakerGameMeta[] => ICE_BREAKER_GAMES.filter(g => g.available);
 

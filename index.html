@@ -86,10 +86,11 @@
     .ib-fade-in { animation: ib-fade-in 0.6s ease-out both; }
     .ib-pop { animation: ib-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
     .ib-fade-up { animation: ib-fade-up 0.4s ease-out both; }
-    /* Air Hockey: the whole height but the game's one-line bar (40 px + 8 px gap) and the page's
-       slim padding while the game is on (2 × 8 px): no board header then. The game fills it (fill
-       option): the rink as big as it fits, its score bands on the sides when the room is wide. */
-    .ah-rink { width: 100%; height: max(280px, calc(100dvh - 64px)); }
+    /* Air Hockey: the game takes the whole height but the page's slim padding while it is on (2 × 8 px,
+       no board header then). The rink gets what its bar leaves, whatever the bar's height (it wraps on
+       a phone). The game fills it (fill option): as big as it fits, score bands on the sides when wide. */
+    .ah-play { height: max(328px, calc(100dvh - 16px)); }
+    .ah-rink { position: relative; width: 100%; flex: 1 1 0; min-height: 280px; }
     .ib-float { animation: ib-float 2.4s ease-in-out infinite; }
     .ib-shake { animation: ib-shake 0.4s ease-in-out; }
     .ib-pointer-tick { animation: ib-pointer-tick 0.12s ease-out; }

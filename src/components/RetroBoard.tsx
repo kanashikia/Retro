@@ -5,7 +5,7 @@ import { RetroPhase, User, SessionState, ThemeGroup, IceBreakerGameId } from '..
 import { groupTicketsWithAI } from '../services/geminiService';
 import { useTheme } from '../context/ThemeContext';
 import { socket } from '../services/socket';
-import { GamePick } from '../icebreaker/games';
+import { GamePick, isFullHeightGame } from '../icebreaker/games';
 
 import BoardHeader from './BoardHeader';
 import PhaseStepper from './PhaseStepper';
@@ -391,11 +391,15 @@ const RetroBoard: React.FC = () => {
         socket.emit('toggle-reaction', { sessionId: sessionId, ticketId, emoji });
     };
 
-    // A live Air Hockey game: no board header nor phase stepper, slim padding: the rink gets the
-    // whole height, the room to play in. The game's own bar keeps the admin's buttons.
-    const liveGame = session.phase === RetroPhase.ICE_BREAKER
-        && session.iceBreakerState?.game === 'airhockey'
-        && session.iceBreakerState?.step === 'play';
+    // A full-height game is on (Air Hockey): no board header nor phase stepper, slim padding: the
+    // game gets the whole height. Its own bar keeps the admin's buttons, Leave and the last error.
+    const liveGame = isFullHeightGame(session);
+
+    // Leave for a participant; for the admin, close the session for everyone, once confirmed.
+    const handleLeave = () => {
+        if (isAdmin && !window.confirm("Do you want to close this session for everyone? This will save it to your history.")) return;
+        handleCloseSession();
+    };
 
     return (
         <div className="min-h-screen flex flex-col text-text transition-colors duration-300">
@@ -408,20 +412,12 @@ const RetroBoard: React.FC = () => {
                     error={error}
                     previousActions={previousActions}
                     onNextPhase={handleNextPhase}
-                    onReset={() => {
-                        if (isAdmin) {
-                            if (window.confirm("Do you want to close this session for everyone? This will save it to your history.")) {
-                                handleCloseSession();
-                            }
-                        } else {
-                            handleCloseSession();
-                        }
-                    }}
+                    onReset={handleLeave}
                 />
             )}
             {!liveGame && <PhaseStepper session={session} currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />}
             <main className={`flex-1 overflow-auto ${liveGame ? 'p-2' : 'p-6 lg:p-10'}`}>
-                {session.phase === RetroPhase.ICE_BREAKER && <IceBreakerBoard session={session} currentUser={userWithVotes!} participants={participants} isAdmin={!!isAdmin} isGenerating={isGeneratingIceBreaker} onGenerate={handleGenerateIceBreaker} onNext={handleIceBreakerNext} onStartRetro={handleNextPhase} onSelectGame={handleSelectIceBreakerGame} onChangeGame={handleChangeIceBreakerGame} isStarting={isStartingIceBreaker} onStart={handleStartIceBreaker} onSubmit={handleIceBreakerSubmit} onAdvance={handleIceBreakerAdvance} onSkip={handleIceBreakerSkip} onSetExcludedGames={handleSetExcludedGames} />}
+                {session.phase === RetroPhase.ICE_BREAKER && <IceBreakerBoard session={session} currentUser={userWithVotes!} participants={participants} isAdmin={!!isAdmin} isGenerating={isGeneratingIceBreaker} onGenerate={handleGenerateIceBreaker} onNext={handleIceBreakerNext} onStartRetro={handleNextPhase} onSelectGame={handleSelectIceBreakerGame} onChangeGame={handleChangeIceBreakerGame} isStarting={isStartingIceBreaker} onStart={handleStartIceBreaker} onSubmit={handleIceBreakerSubmit} onAdvance={handleIceBreakerAdvance} onSkip={handleIceBreakerSkip} onSetExcludedGames={handleSetExcludedGames} error={error} onLeave={handleLeave} />}
                 {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={userWithVotes!} participants={participants} onToggleReady={handleToggleReady} />}
                 {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} currentUser={userWithVotes!} onToggleReaction={handleToggleReaction} onRegenerate={handleRegenerateGroups} isRegenerating={isRegenerating} />}
                 {session.phase === RetroPhase.VOTING && <VotingBoard session={session} currentUser={userWithVotes!} participants={participants} onUpdateUser={setCurrentUser} onToggleReaction={handleToggleReaction} />}

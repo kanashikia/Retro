@@ -12,6 +12,9 @@ export const AIR_HOCKEY_RULES = { goals: 3, rounds: 3 };
 /** Inputs are 5 bytes, a join or a ping a few dozen: anything bigger is dropped. */
 export const MAX_FRAME = 1024;
 
+/** The game pings every 2 s: a socket's pings closer than this are dropped, not answered. */
+export const MIN_PING_GAP_MS = 1000;
+
 /** The lobby's start: the game is on for everyone in the session. */
 export const startAirHockeyGame = (state, now = Date.now()) => ({ ...state, step: 'play', roundStartedAt: now });
 
@@ -22,10 +25,10 @@ export const toArrayBuffer = (data) => {
     return null;
 };
 
-export const createAirHockeyHost = ({ rules = AIR_HOCKEY_RULES, makeRoom = (r) => new Room(r) } = {}) => {
+export const createAirHockeyHost = ({ rules = AIR_HOCKEY_RULES, makeRoom = (r) => new Room(r), now = Date.now } = {}) => {
     /** sessionId -> { room, conns } */
     const games = new Map();
-    /** socket id -> { sessionId, conn, name } */
+    /** socket id -> { sessionId, conn, name, lastPing } */
     const peers = new Map();
 
     const leave = (socketId) => {
@@ -68,7 +71,12 @@ export const createAirHockeyHost = ({ rules = AIR_HOCKEY_RULES, makeRoom = (r) =
             // The only texts a client sends: its join, rewritten with the session's name for it, and
             // a ping (its clock, answered with a pong) to measure the round trip, rewritten too.
             if (msg?.t === 'join') game.room.receive(peer.conn, JSON.stringify({ t: 'join', name: peer.name }));
-            else if (msg?.t === 'ping' && Number.isFinite(msg.n)) game.room.receive(peer.conn, JSON.stringify({ t: 'ping', n: msg.n }));
+            else if (msg?.t === 'ping' && Number.isFinite(msg.n)) {
+                const t = now();
+                if (peer.lastPing !== undefined && t - peer.lastPing < MIN_PING_GAP_MS) return;
+                peer.lastPing = t;
+                game.room.receive(peer.conn, JSON.stringify({ t: 'ping', n: msg.n }));
+            }
             return;
         }
         const bytes = toArrayBuffer(data);
