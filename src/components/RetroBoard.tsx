@@ -391,6 +391,11 @@ const RetroBoard: React.FC = () => {
         socket.emit('toggle-reaction', { sessionId: sessionId, ticketId, emoji });
     };
 
+    // A live Air Hockey game: no phase stepper, slim padding, the rink gets the height.
+    const liveGame = session.phase === RetroPhase.ICE_BREAKER
+        && session.iceBreakerState?.game === 'airhockey'
+        && session.iceBreakerState?.step === 'play';
+
     return (
         <div className="min-h-screen flex flex-col text-text transition-colors duration-300">
             <BoardHeader
@@ -411,8 +416,8 @@ const RetroBoard: React.FC = () => {
                     }
                 }}
             />
-            <PhaseStepper session={session} currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />
-            <main className="flex-1 p-6 lg:p-10 overflow-auto">
+            {!liveGame && <PhaseStepper session={session} currentPhase={session.phase} isAdmin={!!isAdmin} onPhaseChange={handlePhaseManualChange} />}
+            <main className={`flex-1 overflow-auto ${liveGame ? 'p-3' : 'p-6 lg:p-10'}`}>
                 {session.phase === RetroPhase.ICE_BREAKER && <IceBreakerBoard session={session} currentUser={userWithVotes!} participants={participants} isAdmin={!!isAdmin} isGenerating={isGeneratingIceBreaker} onGenerate={handleGenerateIceBreaker} onNext={handleIceBreakerNext} onStartRetro={handleNextPhase} onSelectGame={handleSelectIceBreakerGame} onChangeGame={handleChangeIceBreakerGame} isStarting={isStartingIceBreaker} onStart={handleStartIceBreaker} onSubmit={handleIceBreakerSubmit} onAdvance={handleIceBreakerAdvance} onSkip={handleIceBreakerSkip} onSetExcludedGames={handleSetExcludedGames} />}
                 {session.phase === RetroPhase.BRAINSTORM && <BrainstormBoard session={session} currentUser={userWithVotes!} participants={participants} onToggleReady={handleToggleReady} />}
                 {session.phase === RetroPhase.GROUPING && <GroupingBoard session={session} currentUser={userWithVotes!} onToggleReaction={handleToggleReaction} onRegenerate={handleRegenerateGroups} isRegenerating={isRegenerating} />}
