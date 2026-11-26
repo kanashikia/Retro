@@ -79,8 +79,8 @@ const AirHockeyGame: React.FC<Props> = ({
 
   return (
     // One line above the rink, the admin's buttons in it: the rink gets every other pixel of height.
-    <div className="flex flex-col items-center gap-3 w-full">
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 w-full">
+    <div className="flex flex-col items-center gap-2 w-full">
+      <div className="flex items-center justify-between gap-4 w-full h-10 overflow-hidden">
         <div className="flex items-center gap-3 min-w-0">
           <span className="shrink-0 px-3 py-1 rounded-full text-xs font-black uppercase tracking-[0.2em]" style={{ background: `${META.color}22`, color: META.color }}>
             {META.emoji} {META.name}
@@ -88,16 +88,16 @@ const AirHockeyGame: React.FC<Props> = ({
           <span className="text-text-muted text-sm truncate">Three rounds, first to 3 goals. Your paddle follows the mouse or a finger. 🔊 on the first click.</span>
         </div>
         {isAdmin ? (
-          <div className="flex items-center gap-4 shrink-0">
+          <div className="flex items-center gap-3 shrink-0">
             <button onClick={onChangeGame} className="flex items-center gap-1.5 text-sm font-bold text-text-muted hover:text-text transition-colors">
               <Shuffle className="w-4 h-4" /> Play another game
             </button>
-            <button onClick={onStartRetro} className="flex items-center gap-2 px-4 py-2 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-[0.98]">
+            <button onClick={onStartRetro} className="flex items-center gap-2 px-3 py-1.5 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-[0.98]">
               <Trophy className="w-4 h-4" /> Start Retro
             </button>
           </div>
         ) : (
-          <p className="text-text-muted italic text-sm">Waiting for the admin to start the retro...</p>
+          <p className="text-text-muted italic text-sm truncate">Waiting for the admin to start the retro...</p>
         )}
       </div>
       <Rink sessionId={session.id} name={currentUser.name} />
