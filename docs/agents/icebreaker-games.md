@@ -8,12 +8,12 @@ Read this file before proposing or building a game.
 
 | Rule | Limit | Air Hockey today |
 | --- | --- | --- |
-| Main bundle growth (registry entry, component, adapter) | ≤ 2 KB gzip | +1.5 KB |
-| The game's own chunk, its dependencies included | ≤ 20 KB gzip | 18.0 KB |
+| Main bundle growth (registry entry, component, adapter) | ≤ 2 KB gzip | +1.8 KB |
+| The game's own chunk, its dependencies included | ≤ 20 KB gzip | 19.8 KB (sound included) |
 
 - **Load the game on demand**: `import('…')` when the game starts (step `play`), never a static import of the game code. The lobby, the wheel and the other phases must not download it.
 - **No new runtime dependency** other than the game itself, and no game engine or library (Phaser, Pixi, three.js, physics engines…).
-- **No assets**: no images, fonts, audio or video. Draw with Canvas 2D, SVG, CSS or emoji.
+- **No assets**: no images, fonts, audio or video. Draw with Canvas 2D, SVG, CSS or emoji; synthesise sound with Web Audio (Air Hockey: a few oscillators and noise, muted on demand).
 - No WebAssembly or Workers for game logic: an ice breaker is a few shapes.
 
 Measure after `npm run build`:

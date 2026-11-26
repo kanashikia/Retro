@@ -3,7 +3,8 @@ import { SessionState, User } from '../../types';
 import { getGameMeta } from '../../icebreaker/games';
 import { airHockeySocket } from '../../icebreaker/airHockeySocket';
 import { socket } from '../../services/socket';
-import { EndOfGameActions, GameHeader, GameLobby } from './shared';
+import { AlertCircle, LogOut, Shuffle, Trophy } from 'lucide-react';
+import { GameLobby } from './shared';
 
 interface Props {
   session: SessionState;
@@ -14,6 +15,10 @@ interface Props {
   onStart: () => void;
   onStartRetro: () => void;
   onChangeGame: () => void;
+  /** The board's last error: the board header, which shows it otherwise, is hidden while the game is on. */
+  error?: string | null;
+  /** Leave the session (the admin closes it): the board header's Leave is hidden while the game is on. */
+  onLeave?: () => void;
 }
 
 const META = getGameMeta('airhockey')!;
@@ -39,7 +44,7 @@ const Rink: React.FC<{ sessionId: string; name: string }> = ({ sessionId, name }
     import('air-hockey')
       .then(({ airHockey }) => {
         if (gone || !ref.current) return;
-        game = airHockey(ref.current, { name, socket: airHockeySocket(socket, sessionId) });
+        game = airHockey(ref.current, { name, socket: airHockeySocket(socket, sessionId), fill: true });
         setStatus('ready');
       })
       .catch(() => !gone && setStatus('failed'));
@@ -51,15 +56,15 @@ const Rink: React.FC<{ sessionId: string; name: string }> = ({ sessionId, name }
 
   return (
     <div className="ah-rink">
-      {status === 'loading' && <p className="text-text-muted italic text-center py-16">Flooding the rink...</p>}
-      {status === 'failed' && <p className="text-text-muted text-center py-16">The game did not load. Check your connection and reload the page.</p>}
-      <div ref={ref} />
+      {status === 'loading' && <p className="absolute inset-0 flex items-center justify-center text-text-muted italic text-center px-4">Flooding the rink...</p>}
+      {status === 'failed' && <p className="absolute inset-0 flex items-center justify-center text-text-muted text-center px-4">The game did not load. Check your connection and reload the page.</p>}
+      <div ref={ref} className="h-full" />
     </div>
   );
 };
 
 const AirHockeyGame: React.FC<Props> = ({
-  session, currentUser, participants, isAdmin, isStarting, onStart, onStartRetro, onChangeGame
+  session, currentUser, participants, isAdmin, isStarting, onStart, onStartRetro, onChangeGame, error, onLeave
 }) => {
   if (session.iceBreakerState?.step !== 'play') {
     return (
@@ -76,11 +81,45 @@ const AirHockeyGame: React.FC<Props> = ({
     );
   }
 
+  // 44 px tall on a phone, the touch target size; slimmer from `sm` up.
+  const tap = 'min-h-11 sm:min-h-9';
   return (
-    <div className="flex flex-col items-center gap-6 w-full">
-      <GameHeader emoji={META.emoji} name={META.name} color={META.color} subtitle="Three rounds, first to 3 goals. Mouse or finger: your paddle follows." />
+    // A bar above the rink, one line when it fits and wrapping when it does not (a phone, a big
+    // zoom): the admin's buttons and Leave stay reachable. The rink gets every other pixel of height.
+    <div className="ah-play flex flex-col gap-2 w-full">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 w-full min-h-10">
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="shrink-0 px-3 py-1 rounded-full text-xs font-black uppercase tracking-[0.2em]" style={{ background: `${META.color}22`, color: META.color }}>
+            {META.emoji} {META.name}
+          </span>
+          <span className="hidden sm:block text-text-muted text-sm truncate">Three rounds, first to 3 goals. Your paddle follows the mouse or a finger. 🔊 on the first click.</span>
+        </div>
+        <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
+          {isAdmin ? (
+            <>
+              <button onClick={onChangeGame} className={`${tap} flex items-center gap-1.5 px-2 text-sm font-bold text-text-muted hover:text-text transition-colors`}>
+                <Shuffle className="w-4 h-4" /> Play another game
+              </button>
+              <button onClick={onStartRetro} className={`${tap} flex items-center gap-2 px-3 bg-primary text-white font-bold rounded-xl hover:bg-primary-hover transition-all shadow-lg shadow-primary/20 active:scale-[0.98]`}>
+                <Trophy className="w-4 h-4" /> Start Retro
+              </button>
+            </>
+          ) : (
+            <p className="text-text-muted italic text-sm">Waiting for the admin to start the retro...</p>
+          )}
+          {onLeave && (
+            <button onClick={onLeave} title="Leave session" aria-label="Leave session" className={`${tap} min-w-11 sm:min-w-9 flex items-center justify-center rounded-xl text-red-600 hover:bg-red-50 transition-colors`}>
+              <LogOut className="w-5 h-5" />
+            </button>
+          )}
+        </div>
+        {error && (
+          <p role="alert" className="w-full flex items-center gap-2 text-red-600 text-sm font-bold">
+            <AlertCircle className="w-4 h-4 shrink-0" /> {error}
+          </p>
+        )}
+      </div>
       <Rink sessionId={session.id} name={currentUser.name} />
-      <EndOfGameActions isAdmin={isAdmin} onStartRetro={onStartRetro} onChangeGame={onChangeGame} />
     </div>
   );
 };

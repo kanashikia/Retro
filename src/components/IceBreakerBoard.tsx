@@ -42,13 +42,17 @@ interface Props {
   onSkip: () => void;
   /** Admin switches games in or out of the random wheel. */
   onSetExcludedGames: (excluded: IceBreakerGameId[]) => void;
+  /** The board's last error: a full-height game shows it, the board header being hidden then. */
+  error?: string | null;
+  /** Leave the session (the admin closes it): a full-height game's own way out. */
+  onLeave?: () => void;
 }
 
 // Orchestrates the ice breaker phase: game selection, the random wheel, then
 // the chosen game. Game state itself lives in session.iceBreakerState.
 const IceBreakerBoard: React.FC<Props> = ({
   session, currentUser, participants, isAdmin, isGenerating, onGenerate, onNext, onStartRetro, onSelectGame, onChangeGame,
-  isStarting, onStart, onSubmit, onAdvance, onSkip, onSetExcludedGames
+  isStarting, onStart, onSubmit, onAdvance, onSkip, onSetExcludedGames, error, onLeave
 }) => {
   const state = session.iceBreakerState;
   const gameId = resolveGame(state);
@@ -269,6 +273,8 @@ const IceBreakerBoard: React.FC<Props> = ({
         onStart={onStart}
         onStartRetro={onStartRetro}
         onChangeGame={requestChangeGame}
+        error={error}
+        onLeave={onLeave}
       />
       {confirmDialog}
     </>

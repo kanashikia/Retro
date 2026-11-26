@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { AIR_HOCKEY_RULES, MAX_FRAME, createAirHockeyHost, startAirHockeyGame, toArrayBuffer } from './airHockey.js';
+import { AIR_HOCKEY_RULES, MAX_FRAME, MIN_PING_GAP_MS, createAirHockeyHost, startAirHockeyGame, toArrayBuffer } from './airHockey.js';
 
 const fakeRoom = () => ({
     start: vi.fn(),
@@ -10,9 +10,9 @@ const fakeRoom = () => ({
     size: 0,
 });
 
-const host = () => {
+const host = ({ now } = {}) => {
     const rooms = [];
-    const h = createAirHockeyHost({ makeRoom: (rules) => { const r = { ...fakeRoom(), rules }; rooms.push(r); return r; } });
+    const h = createAirHockeyHost({ now, makeRoom: (rules) => { const r = { ...fakeRoom(), rules }; rooms.push(r); return r; } });
     return { h, rooms };
 };
 
@@ -41,6 +41,33 @@ describe('air hockey host', () => {
         h.join('a', 's1', 'Ana', vi.fn());
         h.receive('a', JSON.stringify({ t: 'join', name: 'Admin 👑' }));
         expect(rooms[0].receive).toHaveBeenCalledWith(expect.anything(), JSON.stringify({ t: 'join', name: 'Ana' }));
+    });
+
+    it('relays a ping with only its clock, drops one without a number', () => {
+        const { h, rooms } = host();
+        h.join('a', 's1', 'Ana', vi.fn());
+        h.receive('a', JSON.stringify({ t: 'ping', n: 1234.5, extra: 'x'.repeat(50) }));
+        h.receive('a', JSON.stringify({ t: 'ping', n: 'soon' }));
+        h.receive('a', JSON.stringify({ t: 'ping' }));
+        expect(rooms[0].receive).toHaveBeenCalledOnce();
+        expect(rooms[0].receive).toHaveBeenCalledWith(expect.anything(), JSON.stringify({ t: 'ping', n: 1234.5 }));
+    });
+
+    it('answers at most one ping per socket a second, each socket on its own clock', () => {
+        let t = 10_000;
+        const { h, rooms } = host({ now: () => t });
+        h.join('a', 's1', 'Ana', vi.fn());
+        h.join('b', 's1', 'Bob', vi.fn());
+        const ping = (id, n) => h.receive(id, JSON.stringify({ t: 'ping', n }));
+        ping('a', 1);
+        ping('a', 2);
+        ping('b', 3);
+        t += MIN_PING_GAP_MS - 1;
+        ping('a', 4);
+        t += 1;
+        ping('a', 5);
+        const sent = rooms[0].receive.mock.calls.map(([, data]) => JSON.parse(data).n);
+        expect(sent).toEqual([1, 3, 5]);
     });
 
     it('passes inputs as their exact bytes, drops oversized and stray frames', () => {
