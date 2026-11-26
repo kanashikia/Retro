@@ -68,6 +68,15 @@ export const ICE_BREAKER_GAMES: IceBreakerGameMeta[] = [
     available: true,
     isNew: true,
   },
+  {
+    id: 'tinyfps',
+    name: 'Tiny FPS',
+    emoji: '🚩',
+    tagline: 'Capture the flag in 3D, two teams, in a tab of its own.',
+    color: '#f97316',
+    available: true,
+    isNew: true,
+  },
 ];
 
 export const RANDOM_GAME = 'random' as const;
@@ -92,3 +101,14 @@ export const resolveGame = (state: IceBreakerState | undefined | null): IceBreak
   if (state.game === undefined && (state.questions?.length ?? 0) > 0) return 'questions';
   return null;
 };
+
+/**
+ * Tiny FPS maps, in the order the admin sees them. Keep the keys in sync with the game's MAPS
+ * (server/utils/tinyFps.js checks them): the game itself stays out of the main bundle.
+ */
+export const FPS_MAPS = [
+  { id: 'highline', name: 'Highline', tag: 'Rooftops', blurb: 'Rooftops over a city: three routes, wall-runs and dashes.' },
+  { id: 'tranquility', name: 'Tranquility', tag: 'Moon · half gravity', blurb: 'A moon base in a crater: half gravity, rovers and ships.' },
+  { id: 'landfall', name: 'Landfall', tag: 'Beach · wreck', blurb: 'A ship wrecked across a Caribbean beach, two camps at either end.' },
+] as const;
+export const DEFAULT_FPS_MAP = 'highline';

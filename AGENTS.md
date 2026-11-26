@@ -25,7 +25,7 @@ Before editing, identify which layer you are touching:
 - Preserve session visibility rules across phases.
 - Keep graceful fallbacks when AI fails.
 - Make small changes unless a larger refactor is explicitly required.
-- A new ice breaker game meets `docs/agents/icebreaker-games.md`: loaded on demand, ≤ 20 KB gzip, no assets or game library.
+- A new ice breaker game meets `docs/agents/icebreaker-games.md`: loaded on demand, ≤ 20 KB gzip, no assets or game library, unless it is a full-page game in a tab of its own (see that file).
 - Verify behavior when changing socket payloads, auth flows, or session state.
 
 ## Commands
