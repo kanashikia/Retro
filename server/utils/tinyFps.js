@@ -22,6 +22,13 @@ export const FPS_TICKET_TTL = '4h';
 
 export const isFpsMap = (map) => typeof map === 'string' && Object.hasOwn(MAPS, map);
 
+/**
+ * Whether a session's Tiny FPS game is on: the ice breaker phase, this game, started, the session
+ * open. A game tab gets in only then, and is sent off as soon as it no longer holds.
+ */
+export const isFpsOn = (data, status) =>
+    status !== 'closed' && data?.phase === 'ICE_BREAKER' && data.iceBreakerState?.game === 'tinyfps' && data.iceBreakerState?.step === 'play';
+
 /** The admin's pick in the lobby. */
 export const setFpsMap = (state, map) => ({ ...state, fpsMap: map });
 
@@ -71,7 +78,7 @@ export const cleanFpsText = (data, name) => {
 export const createTinyFpsHost = ({ makeRoom = (rules) => new Room(rules) } = {}) => {
     /** `${sessionId}:${map}` -> { room, conns } */
     const games = new Map();
-    /** socket id -> { key, conn, name } */
+    /** socket id -> { key, sessionId, conn, name, userId, over } */
     const peers = new Map();
 
     const leave = (socketId) => {
@@ -88,10 +95,25 @@ export const createTinyFpsHost = ({ makeRoom = (rules) => new Room(rules) } = {}
         }
     };
 
-    // `send` delivers one frame to that socket. The name is the session's, never the client's.
-    // A room per map: a game the admin starts again on another map is a new room.
-    const join = (socketId, sessionId, map, name, send) => {
+    /** Takes a socket out of its game and tells its tab why ('ended', 'elsewhere'). */
+    const sendOff = (socketId, reason) => {
+        const over = peers.get(socketId)?.over;
         leave(socketId);
+        over?.(reason);
+    };
+
+    // `send` delivers one frame to that socket, `over(reason)` tells its tab it was sent off. The
+    // name is the session's, never the client's. A room per map: a game the admin starts again on
+    // another map is a new room. One player per user and session: a tab that joins again (another
+    // tab, or the same one back from a reconnect the server has not noticed yet) takes the place
+    // of the older one, which is sent off.
+    const join = (socketId, sessionId, map, name, send, { userId, over } = {}) => {
+        leave(socketId);
+        if (userId != null) {
+            for (const [id, peer] of [...peers]) {
+                if (peer.sessionId === sessionId && peer.userId === String(userId)) sendOff(id, 'elsewhere');
+            }
+        }
         const key = `${sessionId}:${map}`;
         let game = games.get(key);
         if (!game) {
@@ -101,8 +123,22 @@ export const createTinyFpsHost = ({ makeRoom = (rules) => new Room(rules) } = {}
         }
         const conn = { send };
         game.conns.add(conn);
-        peers.set(socketId, { key, conn, name: String(name).slice(0, FPS_NAME_MAX) });
+        peers.set(socketId, {
+            key,
+            sessionId,
+            conn,
+            name: String(name).slice(0, FPS_NAME_MAX),
+            userId: userId == null ? undefined : String(userId),
+            over,
+        });
         game.room.connect(conn);
+    };
+
+    /** The session's game is over (the retro moved on, another game, closed): every tab is sent off. */
+    const end = (sessionId) => {
+        for (const [id, peer] of [...peers]) {
+            if (peer.sessionId === sessionId) sendOff(id, 'ended');
+        }
     };
 
     const receive = (socketId, data) => {
@@ -121,5 +157,5 @@ export const createTinyFpsHost = ({ makeRoom = (rules) => new Room(rules) } = {}
     /** Players in a session's game on that map. */
     const size = (sessionId, map) => games.get(`${sessionId}:${map}`)?.room.size ?? 0;
 
-    return { join, receive, leave, size };
+    return { join, receive, leave, end, size };
 };

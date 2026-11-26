@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
 import {
-    DEFAULT_FPS_MAP, FPS_MAPS, MAX_FPS_FRAME, cleanFpsText, createTinyFpsHost, isFpsMap,
+    DEFAULT_FPS_MAP, FPS_MAPS, MAX_FPS_FRAME, cleanFpsText, createTinyFpsHost, isFpsMap, isFpsOn,
     signFpsTicket, startTinyFpsGame, verifyFpsTicket,
 } from './tinyFps.js';
 
@@ -58,11 +58,63 @@ describe('tiny fps host', () => {
     });
 });
 
+describe('tiny fps host: sending tabs off', () => {
+    it("ends a session's games when it moves on: every tab told, its rooms stopped, other sessions kept", () => {
+        const { h, rooms } = host();
+        const over = { a: vi.fn(), b: vi.fn(), c: vi.fn() };
+        h.join('a', 's1', 'highline', 'Ana', vi.fn(), { userId: 'u1', over: over.a });
+        h.join('b', 's1', 'highline', 'Bob', vi.fn(), { userId: 'u2', over: over.b });
+        h.join('c', 's2', 'highline', 'Chloé', vi.fn(), { userId: 'u3', over: over.c });
+        h.end('s1');
+        expect(over.a).toHaveBeenCalledWith('ended');
+        expect(over.b).toHaveBeenCalledWith('ended');
+        expect(over.c).not.toHaveBeenCalled();
+        expect(rooms[0].stop).toHaveBeenCalledOnce();
+        expect(rooms[1].stop).not.toHaveBeenCalled();
+        expect(h.size('s1', 'highline')).toBe(0);
+        // Gone from the host: their frames and leaves do nothing, a second end neither.
+        h.receive('a', new ArrayBuffer(12));
+        expect(rooms[0].receive).not.toHaveBeenCalled();
+        h.end('s1');
+        expect(over.a).toHaveBeenCalledOnce();
+    });
+
+    it('keeps one player per user in a session: a new tab takes the place, the older one is sent off', () => {
+        const { h, rooms } = host();
+        const first = vi.fn();
+        const second = vi.fn();
+        h.join('tab1', 's1', 'highline', 'Ana', vi.fn(), { userId: 'u1', over: first });
+        h.join('bob', 's1', 'highline', 'Bob', vi.fn(), { userId: 'u2', over: vi.fn() });
+        h.join('tab2', 's1', 'highline', 'Ana', vi.fn(), { userId: 'u1', over: second });
+        expect(first).toHaveBeenCalledWith('elsewhere');
+        expect(second).not.toHaveBeenCalled();
+        expect(rooms).toHaveLength(1);
+        expect(rooms[0].disconnect).toHaveBeenCalledOnce();
+        expect(rooms[0].connect).toHaveBeenCalledTimes(3);
+        expect(rooms[0].stop).not.toHaveBeenCalled();
+        // Another session of the same user is another game.
+        const other = vi.fn();
+        h.join('tab3', 's2', 'highline', 'Ana', vi.fn(), { userId: 'u1', over: other });
+        expect(second).not.toHaveBeenCalled();
+    });
+});
+
 describe('tiny fps state and tickets', () => {
     it('knows the maps of the game, not the prototype', () => {
         expect(FPS_MAPS).toEqual(expect.arrayContaining(['highline', 'tranquility', 'landfall']));
         expect(isFpsMap('__proto__')).toBe(false);
         expect(isFpsMap(7)).toBe(false);
+    });
+
+    it('knows when a game is on: the ice breaker, Tiny FPS, started, the session open', () => {
+        const on = { phase: 'ICE_BREAKER', iceBreakerState: { game: 'tinyfps', step: 'play' } };
+        expect(isFpsOn(on, 'active')).toBe(true);
+        expect(isFpsOn(on, undefined)).toBe(true);
+        expect(isFpsOn(on, 'closed')).toBe(false);
+        expect(isFpsOn({ ...on, phase: 'BRAINSTORM' }, 'active')).toBe(false);
+        expect(isFpsOn({ ...on, iceBreakerState: { game: 'airhockey', step: 'play' } }, 'active')).toBe(false);
+        expect(isFpsOn({ ...on, iceBreakerState: { game: 'tinyfps', step: 'lobby' } }, 'active')).toBe(false);
+        expect(isFpsOn(undefined, 'active')).toBe(false);
     });
 
     it('starts on the map the admin picked, or the default one', () => {

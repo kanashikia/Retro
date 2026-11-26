@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import TinyFpsGame from './TinyFpsGame';
 import { RetroPhase } from '../../types';
@@ -53,6 +53,36 @@ describe('TinyFpsGame', () => {
     expect(open).toHaveBeenCalledWith('/fps.html#t=a.b%2Fc', '_blank', 'noopener');
     expect(screen.getByText(/Landfall: capture the flag/)).toBeInTheDocument();
     expect(game.tinyFps).not.toHaveBeenCalled();
+    io.emit.mockReset();
+  });
+
+  it('asks again while a reconnected socket rejoins its session, and clears the error on a ticket', async () => {
+    vi.useFakeTimers();
+    // The first answers come before the rejoin: 'Missing actor'; then a ticket.
+    const answers = [{ error: 'Missing actor' }, { error: 'Missing actor' }, { ticket: 't2' }];
+    io.emit.mockImplementation((ev: string, _: unknown, ack?: (r: unknown) => void) => {
+      if (ev === 'tinyfps:ticket') ack?.(answers.shift() ?? { error: 'Missing actor' });
+    });
+    renderGame({ step: 'play' });
+    const asks = () => io.emit.mock.calls.filter(([ev]) => ev === 'tinyfps:ticket').length;
+    expect(asks()).toBe(1);
+    await act(() => vi.advanceTimersByTimeAsync(1000));
+    expect(asks()).toBe(3);
+    expect(screen.getByRole('button', { name: /Open the game/ })).toBeEnabled();
+    expect(screen.queryByText(/Could not get you in/)).not.toBeInTheDocument();
+
+    // A reconnect that never gets a ticket: the error, then gone with the next ticket.
+    const connect = io.on.mock.calls.find(([ev]) => ev === 'connect')![1];
+    answers.length = 0;
+    act(() => connect());
+    await act(() => vi.advanceTimersByTimeAsync(5000));
+    expect(asks()).toBe(8);
+    expect(screen.getByText(/Could not get you in/)).toBeInTheDocument();
+    answers.push({ ticket: 't3' });
+    act(() => connect());
+    await act(() => vi.advanceTimersByTimeAsync(0));
+    expect(screen.queryByText(/Could not get you in/)).not.toBeInTheDocument();
+    vi.useRealTimers();
     io.emit.mockReset();
   });
 });
